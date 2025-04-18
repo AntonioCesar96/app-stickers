@@ -8,16 +8,24 @@
 
 package com.example.samplestickerapp;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -61,7 +69,12 @@ public class EntryActivity extends BaseActivity {
         progressBar.setVisibility(View.GONE);
         Log.e("EntryActivity", "error fetching sticker packs, " + errorMessage);
         final TextView errorMessageTV = findViewById(R.id.error_message);
-        errorMessageTV.setText(getString(R.string.error_message, errorMessage));
+
+        if(errorMessage.equals("After last row.")) {
+            errorMessageTV.setText(getString(R.string.error_message, errorMessage) + "\nFeche o aplicativo e abra novamente.");
+        } else {
+            errorMessageTV.setText(getString(R.string.error_message, errorMessage));
+        }
     }
 
     @Override

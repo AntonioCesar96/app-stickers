@@ -11,6 +11,9 @@ package com.example.samplestickerapp;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.ActivityNotFoundException;
+import android.content.ContentProvider;
+import android.content.ContentProviderClient;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -28,6 +31,8 @@ public abstract class AddStickerPackActivity extends BaseActivity {
 
     protected void addStickerPackToWhatsApp(String identifier, String stickerPackName) {
         try {
+            //ContentsJsonHelper.updatePackAndContentProvider(identifier, this);
+
             //if neither WhatsApp Consumer or WhatsApp Business is installed, then tell user to install the apps.
             if (!WhitelistCheck.isWhatsAppConsumerAppInstalled(getPackageManager()) && !WhitelistCheck.isWhatsAppSmbAppInstalled(getPackageManager())) {
                 Toast.makeText(this, R.string.add_pack_fail_prompt_update_whatsapp, Toast.LENGTH_LONG).show();
@@ -38,7 +43,7 @@ public abstract class AddStickerPackActivity extends BaseActivity {
             if (!stickerPackWhitelistedInWhatsAppConsumer && !stickerPackWhitelistedInWhatsAppSmb) {
                 //ask users which app to add the pack to.
                 launchIntentToAddPackToChooser(identifier, stickerPackName);
-            } else if (!stickerPackWhitelistedInWhatsAppConsumer) {
+            } else if (stickerPackWhitelistedInWhatsAppConsumer || !stickerPackWhitelistedInWhatsAppConsumer) {
                 launchIntentToAddPackToSpecificPackage(identifier, stickerPackName, WhitelistCheck.CONSUMER_WHATSAPP_PACKAGE_NAME);
             } else if (!stickerPackWhitelistedInWhatsAppSmb) {
                 launchIntentToAddPackToSpecificPackage(identifier, stickerPackName, WhitelistCheck.SMB_WHATSAPP_PACKAGE_NAME);

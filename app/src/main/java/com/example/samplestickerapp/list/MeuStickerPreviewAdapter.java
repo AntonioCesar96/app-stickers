@@ -6,31 +6,28 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-package com.example.samplestickerapp;
+package com.example.samplestickerapp.list;
 
-import android.content.Context;
-import android.graphics.Color;
 import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.samplestickerapp.R;
 import com.facebook.drawee.backends.pipeline.Fresco;
 import com.facebook.drawee.interfaces.DraweeController;
 import com.facebook.drawee.view.SimpleDraweeView;
 
-public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewViewHolder> {
+public class MeuStickerPreviewAdapter extends RecyclerView.Adapter<MeuStickerPreviewViewHolder> {
 
     private static final float COLLAPSED_STICKER_PREVIEW_BACKGROUND_ALPHA = 1f;
     private static final float EXPANDED_STICKER_PREVIEW_BACKGROUND_ALPHA = 0.2f;
 
     @NonNull
-    private final StickerPack stickerPack;
+    private final MeuStickerPackModel stickerPack;
 
     private final int cellSize;
     private final int cellLimit;
@@ -43,16 +40,14 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     private View clickedStickerPreview;
     float expandedViewLeftX;
     float expandedViewTopY;
-    OnUpdateSizeListener onUpdateSizeListener;
 
-    StickerPreviewAdapter(
+    MeuStickerPreviewAdapter(
             @NonNull final LayoutInflater layoutInflater,
             final int errorResource,
             final int cellSize,
             final int cellPadding,
-            @NonNull final StickerPack stickerPack,
-            final SimpleDraweeView expandedStickerView,
-            OnUpdateSizeListener onUpdateSizeListener) {
+            @NonNull final MeuStickerPackModel stickerPack,
+            final SimpleDraweeView expandedStickerView) {
         this.cellSize = cellSize;
         this.cellPadding = cellPadding;
         this.cellLimit = 0;
@@ -60,14 +55,13 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         this.errorResource = errorResource;
         this.stickerPack = stickerPack;
         this.expandedStickerPreview = expandedStickerView;
-        this.onUpdateSizeListener = onUpdateSizeListener;
     }
 
     @NonNull
     @Override
-    public StickerPreviewViewHolder onCreateViewHolder(@NonNull final ViewGroup viewGroup, final int i) {
-        View itemView = layoutInflater.inflate(R.layout.sticker_image_item, viewGroup, false);
-        StickerPreviewViewHolder vh = new StickerPreviewViewHolder(itemView);
+    public MeuStickerPreviewViewHolder onCreateViewHolder(@NonNull final ViewGroup viewGroup, final int i) {
+        View itemView = layoutInflater.inflate(R.layout.meu_sticker_image_item, viewGroup, false);
+        MeuStickerPreviewViewHolder vh = new MeuStickerPreviewViewHolder(itemView);
 
         ViewGroup.LayoutParams layoutParams = vh.stickerPreviewView.getLayoutParams();
         layoutParams.height = cellSize;
@@ -79,15 +73,10 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     }
 
     @Override
-    public void onBindViewHolder(@NonNull final StickerPreviewViewHolder stickerPreviewViewHolder, final int position) {
-        stickerPreviewViewHolder.stickerPreviewView.setImageResource(errorResource);
-        stickerPreviewViewHolder.stickerPreviewView.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName));
-        stickerPreviewViewHolder.stickerPreviewView.setOnClickListener(v -> expandPreview(position, stickerPreviewViewHolder.stickerPreviewView));
-
-        stickerPreviewViewHolder.stickerPreviewView.setOnLongClickListener(v -> {
-            showOptionsDialog(v.getContext(), position);
-            return true;
-        });
+    public void onBindViewHolder(@NonNull final MeuStickerPreviewViewHolder MeuStickerPreviewViewHolder, final int i) {
+        MeuStickerPreviewViewHolder.stickerPreviewView.setImageResource(errorResource);
+        MeuStickerPreviewViewHolder.stickerPreviewView.setImageURI(MeuContentsJsonHelper.getStickerAssetUri(stickerPack.identifier, stickerPack.stickers.get(i).imageFileName));
+        MeuStickerPreviewViewHolder.stickerPreviewView.setOnClickListener(v -> expandPreview(i, MeuStickerPreviewViewHolder.stickerPreviewView));
     }
 
     @Override
@@ -103,56 +92,6 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         recyclerView.removeOnScrollListener(hideExpandedViewScrollListener);
         this.recyclerView = null;
     }
-
-    private void showOptionsDialog(Context context, int position) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Escolha uma opção")
-                .setItems(new CharSequence[]{"Editar", "Excluir"}, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            handleEdit(context, position);
-                            break;
-                        case 1:
-                            handleDelete(context, position);
-                            break;
-                    }
-                })
-                .show();
-    }
-
-    private void handleEdit(Context context, int position) {
-        Toast.makeText(context, "Editar item na posição: " + position, Toast.LENGTH_SHORT).show();
-    }
-
-    private void handleDelete(Context context, int position) {
-        AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle("Confirmar exclusão")
-                .setMessage("Tem certeza que deseja excluir esta figurinha?")
-                .setPositiveButton("Excluir", (d, which) -> {
-                    if(stickerPack.getStickers().size() <= 3) {
-                        Toast.makeText(context, "Não foi possível excluir \nUm pacote deve ter no mínimo 3 figurinhas", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    Sticker removido = stickerPack.getStickers().remove(position);
-                    ContentsJsonHelper.removerFigurinha(stickerPack.identifier, removido.imageFileName, context);
-
-                    notifyItemRemoved(position);
-                    notifyItemRangeChanged(position, getItemCount());
-
-                    ContentsJsonHelper.stickerPackAlterado = stickerPack;
-
-                    stickerPack.setStickers(stickerPack.getStickers());
-                    onUpdateSizeListener.onUpdateSizeListener(stickerPack);
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
-
-    }
-
 
     private final RecyclerView.OnScrollListener hideExpandedViewScrollListener =
             new RecyclerView.OnScrollListener() {
@@ -177,8 +116,8 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             final int recyclerViewWidth = recyclerView.getWidth();
             final int recyclerViewHeight = recyclerView.getHeight();
 
-            final StickerPreviewViewHolder clickedViewHolder =
-                    (StickerPreviewViewHolder)
+            final MeuStickerPreviewViewHolder clickedViewHolder =
+                    (MeuStickerPreviewViewHolder)
                             recyclerView.findViewHolderForAdapterPosition(selectedPosition);
             if (clickedViewHolder == null) {
                 hideExpandedStickerPreview();
@@ -231,7 +170,7 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         if (expandedStickerPreview != null) {
             positionExpandedStickerPreview(position);
 
-            final Uri stickerAssetUri = StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName);
+            final Uri stickerAssetUri = MeuContentsJsonHelper.getStickerAssetUri(stickerPack.identifier, stickerPack.stickers.get(position).imageFileName);
             DraweeController controller = Fresco.newDraweeControllerBuilder()
                     .setUri(stickerAssetUri)
                     .setAutoPlayAnimations(true)
@@ -261,14 +200,10 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     @Override
     public int getItemCount() {
         int numberOfPreviewImagesInPack;
-        numberOfPreviewImagesInPack = stickerPack.getStickers().size();
+        numberOfPreviewImagesInPack = stickerPack.stickers.size();
         if (cellLimit > 0) {
             return Math.min(numberOfPreviewImagesInPack, cellLimit);
         }
         return numberOfPreviewImagesInPack;
-    }
-
-    public interface OnUpdateSizeListener {
-        void onUpdateSizeListener(StickerPack stickerPack);
     }
 }

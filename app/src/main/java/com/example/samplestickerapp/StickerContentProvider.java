@@ -18,12 +18,17 @@ import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.Environment;
+import android.os.FileObserver;
+import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -53,14 +58,14 @@ public class StickerContentProvider extends ContentProvider {
     public static final String STICKER_FILE_NAME_IN_QUERY = "sticker_file_name";
     public static final String STICKER_FILE_EMOJI_IN_QUERY = "sticker_emoji";
     public static final String STICKER_FILE_ACCESSIBILITY_TEXT_IN_QUERY = "sticker_accessibility_text";
-    private static final String CONTENT_FILE_NAME = "contents.json";
+    public static final String CONTENT_FILE_NAME = "contents.json";
 
     public static final Uri AUTHORITY_URI = new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(BuildConfig.CONTENT_PROVIDER_AUTHORITY).appendPath(StickerContentProvider.METADATA).build();
 
     /**
      * Do not change the values in the UriMatcher because otherwise, WhatsApp will not be able to fetch the stickers from the ContentProvider.
      */
-    private static final UriMatcher MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
+    private static UriMatcher MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
     private static final String METADATA = "metadata";
     private static final int METADATA_CODE = 1;
 
@@ -70,11 +75,14 @@ public class StickerContentProvider extends ContentProvider {
     private static final int STICKERS_CODE = 3;
 
     static final String STICKERS_ASSET = "stickers_asset";
+    public static final String STICKERS_FOLDER_EXTERNAL_STORAGE = "00-Figurinhas/assets/";
     private static final int STICKERS_ASSET_CODE = 4;
 
     private static final int STICKER_PACK_TRAY_ICON_CODE = 5;
 
     private List<StickerPack> stickerPackList;
+    private FileObserver jsonObserver;
+
 
     @Override
     public boolean onCreate() {
@@ -98,7 +106,6 @@ public class StickerContentProvider extends ContentProvider {
                 MATCHER.addURI(authority, STICKERS_ASSET + "/" + stickerPack.identifier + "/" + sticker.imageFileName, STICKERS_ASSET_CODE);
             }
         }
-
         return true;
     }
 
@@ -147,12 +154,37 @@ public class StickerContentProvider extends ContentProvider {
         }
     }
 
+    public void clearCache() {
+        // 1) limpa cache
+        stickerPackList = null;
+        // 2) recarrega JSON
+        readContentFile(Objects.requireNonNull(getContext()));
+
+        MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
+        onCreate();
+
+        // 3) notifica mudanças
+        getContext().getContentResolver().notifyChange(
+                Uri.parse("content://" + BuildConfig.CONTENT_PROVIDER_AUTHORITY + "/metadata"),
+                null);
+    }
+
     private synchronized void readContentFile(@NonNull Context context) {
-        try (InputStream contentsInputStream = context.getAssets().open(CONTENT_FILE_NAME)) {
+        File file = getContentsJsonFile();
+
+        try (InputStream contentsInputStream = new FileInputStream(file)) {
             stickerPackList = ContentFileParser.parseStickerPacks(contentsInputStream);
         } catch (IOException | IllegalStateException e) {
-            throw new RuntimeException(CONTENT_FILE_NAME + " file has some issues: " + e.getMessage(), e);
+            stickerPackList = new ArrayList<StickerPack>();
+            // throw new RuntimeException(CONTENT_FILE_NAME + " file has some issues: " + e.getMessage(), e);
         }
+    }
+
+    @NonNull
+    private static File getContentsJsonFile() {
+        File rootDir = Environment.getExternalStorageDirectory();
+        File file = new File(rootDir, STICKERS_FOLDER_EXTERNAL_STORAGE + CONTENT_FILE_NAME);
+        return file;
     }
 
     private List<StickerPack> getStickerPackList() {
@@ -263,7 +295,11 @@ public class StickerContentProvider extends ContentProvider {
 
     private AssetFileDescriptor fetchFile(@NonNull Uri uri, @NonNull AssetManager am, @NonNull String fileName, @NonNull String identifier) {
         try {
-            return am.openFd(identifier + "/" + fileName);
+            File rootDir = Environment.getExternalStorageDirectory();
+            File file = new File(rootDir, STICKERS_FOLDER_EXTERNAL_STORAGE + identifier + "/" + fileName);
+
+            return new AssetFileDescriptor(ParcelFileDescriptor.open(file,
+                    ParcelFileDescriptor.MODE_READ_ONLY), 0, AssetFileDescriptor.UNKNOWN_LENGTH);
         } catch (IOException e) {
             Log.e(Objects.requireNonNull(getContext()).getPackageName(), "IOException when getting asset file, uri:" + uri, e);
             return null;

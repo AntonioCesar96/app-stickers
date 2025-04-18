@@ -10,6 +10,7 @@ package com.example.samplestickerapp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.format.Formatter;
@@ -21,6 +22,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.facebook.drawee.view.SimpleDraweeView;
@@ -53,10 +55,7 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
     public void onBindViewHolder(@NonNull final StickerPackListItemViewHolder viewHolder, final int index) {
         StickerPack pack = stickerPacks.get(index);
         final Context context = viewHolder.publisherView.getContext();
-        viewHolder.publisherView.setText(pack.publisher);
-        viewHolder.filesizeView.setText(Formatter.formatShortFileSize(context, pack.getTotalSize()));
 
-        viewHolder.titleView.setText(pack.name);
         viewHolder.container.setOnClickListener(view -> {
             Intent intent = new Intent(view.getContext(), StickerPackDetailsActivity.class);
             intent.putExtra(StickerPackDetailsActivity.EXTRA_SHOW_UP_BUTTON, true);
@@ -79,21 +78,54 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         }
         setAddButtonAppearance(viewHolder.addButton, pack);
         viewHolder.animatedStickerPackIndicator.setVisibility(pack.animatedStickerPack ? View.VISIBLE : View.GONE);
+
+        viewHolder.publisherView.setText(pack.publisher);
+        viewHolder.filesizeView.setText(Formatter.formatShortFileSize(context, pack.getTotalSize()));
+        viewHolder.titleView.setText(pack.name);
+
+        viewHolder.container.setOnLongClickListener(v -> {
+            handleDelete(v.getContext(), index);
+            return true;
+        });
+    }
+
+    private void handleDelete(Context context, int position) {
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle("Confirmar exclusão")
+                .setMessage("Tem certeza que deseja excluir esta figurinha?")
+                .setPositiveButton("Excluir", (d, which) -> {
+
+                    AlertDialog dialog2 = new AlertDialog.Builder(context)
+                            .setTitle("Tem certeza mesmo?")
+                            .setMessage("Tem realmente certeza que deseja excluir esta figurinha?")
+                            .setPositiveButton("Excluir", (d2, which2) -> {
+                                StickerPack removido = stickerPacks.remove(position);
+
+                                ContentsJsonHelper.removerPacote(removido.identifier, context);
+
+                                notifyItemRemoved(position);
+                                notifyItemRangeChanged(position, getItemCount());
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+
+                    dialog2.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
+                    dialog2.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
+
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
     }
 
     private void setAddButtonAppearance(ImageView addButton, StickerPack pack) {
-        if (pack.getIsWhitelisted()) {
-            addButton.setImageResource(R.drawable.sticker_3rdparty_added);
-            addButton.setClickable(false);
-            addButton.setOnClickListener(null);
-            setBackground(addButton, null);
-        } else {
-            addButton.setImageResource(R.drawable.sticker_3rdparty_add);
-            addButton.setOnClickListener(v -> onAddButtonClickedListener.onAddButtonClicked(pack));
-            TypedValue outValue = new TypedValue();
-            addButton.getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
-            addButton.setBackgroundResource(outValue.resourceId);
-        }
+        addButton.setImageResource(R.drawable.sticker_3rdparty_add);
+        addButton.setOnClickListener(v -> onAddButtonClickedListener.onAddButtonClicked(pack));
+        TypedValue outValue = new TypedValue();
+        addButton.getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+        addButton.setBackgroundResource(outValue.resourceId);
     }
 
     private void setBackground(View view, Drawable background) {

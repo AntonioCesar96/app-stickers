@@ -10,6 +10,7 @@ package com.example.samplestickerapp;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
@@ -17,14 +18,14 @@ class StickerPack implements Parcelable {
     final String identifier;
     final String name;
     final String publisher;
-    final String trayImageFile;
-    final String publisherEmail;
-    final String publisherWebsite;
-    final String privacyPolicyWebsite;
-    final String licenseAgreementWebsite;
-    final String imageDataVersion;
-    final boolean avoidCache;
-    final boolean animatedStickerPack;
+    @SerializedName("tray_image_file") final String trayImageFile;
+    @SerializedName("publisher_email") final String publisherEmail;
+    @SerializedName("publisher_website") final String publisherWebsite;
+    @SerializedName("privacy_policy_website") final String privacyPolicyWebsite;
+    @SerializedName("license_agreement_website") final String licenseAgreementWebsite;
+    @SerializedName("image_data_version") final String imageDataVersion;
+    @SerializedName("avoid_cache") final boolean avoidCache;
+    @SerializedName("animated_sticker_pack") final boolean animatedStickerPack;
 
     String iosAppStoreLink;
     private List<Sticker> stickers;
@@ -32,7 +33,9 @@ class StickerPack implements Parcelable {
     String androidPlayStoreLink;
     private boolean isWhitelisted;
 
-    StickerPack(String identifier, String name, String publisher, String trayImageFile, String publisherEmail, String publisherWebsite, String privacyPolicyWebsite, String licenseAgreementWebsite, String imageDataVersion, boolean avoidCache, boolean animatedStickerPack) {
+    StickerPack(String identifier, String name, String publisher, String trayImageFile, String publisherEmail,
+                String publisherWebsite, String privacyPolicyWebsite, String licenseAgreementWebsite,
+                String imageDataVersion, boolean avoidCache, boolean animatedStickerPack) {
         this.identifier = identifier;
         this.name = name;
         this.publisher = publisher;
@@ -87,6 +90,10 @@ class StickerPack implements Parcelable {
 
     void setStickers(List<Sticker> stickers) {
         this.stickers = stickers;
+        setTotalSize(stickers);
+    }
+
+    private void setTotalSize(List<Sticker> stickers) {
         totalSize = 0;
         for (Sticker sticker : stickers) {
             totalSize += sticker.size;

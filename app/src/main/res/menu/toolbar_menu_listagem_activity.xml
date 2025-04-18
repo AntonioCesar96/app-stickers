@@ -2,8 +2,13 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/action_adicionar_novo"
+        android:id="@+id/action_meu_listagem"
         android:icon="@drawable/sticker_3rdparty_add"
         android:title="@string/more_info_button"
         app:showAsAction="always" />
+<!--    <item-->
+<!--        android:id="@+id/action_meu_update"-->
+<!--        android:icon="@android:drawable/ic_menu_rotate"-->
+<!--        android:title="@string/more_info_button"-->
+<!--        app:showAsAction="always" />-->
 </menu>

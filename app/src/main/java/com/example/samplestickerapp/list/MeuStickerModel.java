@@ -6,57 +6,44 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-package com.example.samplestickerapp;
+package com.example.samplestickerapp.list;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import com.google.gson.annotations.SerializedName;
 
 import java.util.List;
 
-class Sticker implements Parcelable {
-    @SerializedName("image_file")
-    final String imageFileName;
-    final List<String> emojis;
-    @SerializedName("accessibility_text")
-    final String accessibilityText;
-    long size;
+class MeuStickerModel implements Parcelable {
+    public String imageFileName;
+    public List<String> emojis;
+    public String accessibilityText;
+    public long size;
 
-    Sticker(String imageFileName, List<String> emojis, String accessibilityText) {
-        this.imageFileName = imageFileName;
-        this.emojis = emojis;
-        this.accessibilityText = accessibilityText;
-    }
-
-    Sticker(String imageFileName, List<String> emojis, String accessibilityText, long size) {
+    MeuStickerModel(String imageFileName, List<String> emojis, String accessibilityText, long size) {
         this.imageFileName = imageFileName;
         this.emojis = emojis;
         this.accessibilityText = accessibilityText;
         this.size = size;
     }
 
-    private Sticker(Parcel in) {
+    private MeuStickerModel(Parcel in) {
         imageFileName = in.readString();
         emojis = in.createStringArrayList();
         accessibilityText = in.readString();
         size = in.readLong();
     }
 
-    public static final Creator<Sticker> CREATOR = new Creator<Sticker>() {
+    public static final Creator<MeuStickerModel> CREATOR = new Creator<MeuStickerModel>() {
         @Override
-        public Sticker createFromParcel(Parcel in) {
-            return new Sticker(in);
+        public MeuStickerModel createFromParcel(Parcel in) {
+            return new MeuStickerModel(in);
         }
 
         @Override
-        public Sticker[] newArray(int size) {
-            return new Sticker[size];
+        public MeuStickerModel[] newArray(int size) {
+            return new MeuStickerModel[size];
         }
     };
-
-    public void setSize(long size) {
-        this.size = size;
-    }
 
     @Override
     public int describeContents() {
