@@ -92,6 +92,14 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
 
+        if (id == R.id.action_meu_update) {
+
+            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
+            recarregarListagem();
+
+            return true;
+        }
+
         if (id == R.id.action_meu_listagem) {
             showCreateStickerPackDialog();
             return true;
@@ -250,7 +258,7 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                         }
                     }
 
-                    if(itemAdicionado) {
+                    if (itemAdicionado) {
                         allStickerPacksListAdapter.setStickerPackList(finalResult.second);
                         allStickerPacksListAdapter.notifyItemInserted(0);
                         allStickerPacksListAdapter.notifyItemRangeChanged(0, stickerPackList.size());

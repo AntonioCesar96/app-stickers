@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -27,6 +28,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StickerPackDetailsActivity extends AddStickerPackActivity {
 
@@ -54,6 +57,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private View alreadyAddedText;
     private StickerPack stickerPack;
     private View divider;
+    private TextView packSizeTextView;
+    private SimpleDraweeView expandedStickerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,8 +69,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         TextView packNameTextView = findViewById(R.id.pack_name);
         TextView packPublisherTextView = findViewById(R.id.author);
         ImageView packTrayIcon = findViewById(R.id.tray_image);
-        TextView packSizeTextView = findViewById(R.id.pack_size);
-        SimpleDraweeView expandedStickerView = findViewById(R.id.sticker_details_expanded_sticker);
+        packSizeTextView = findViewById(R.id.pack_size);
+        expandedStickerView = findViewById(R.id.sticker_details_expanded_sticker);
 
         addButton = findViewById(R.id.add_to_whatsapp_button);
         alreadyAddedText = findViewById(R.id.already_added_text);
@@ -94,6 +99,21 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+
+            stickerPreviewAdapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickerAlteradoTelaCriar);
+            stickerPreviewAdapter.notifyItemInserted(0);
+            stickerPreviewAdapter.notifyItemRangeChanged(0, stickerPreviewAdapter.stickerPack.getStickers().size());
+
+            ContentsJsonHelper.stickerPackAlterado = stickerPreviewAdapter.stickerPack;
+            ContentsJsonHelper.stickerAlteradoTelaCriar = null;
+        }
+    }
+
     private void launchInfoActivity(String publisherWebsite, String publisherEmail, String privacyPolicyWebsite, String licenseAgreementWebsite, String trayIconUriString) {
         Intent intent = new Intent(StickerPackDetailsActivity.this, StickerPackInfoActivity.class);
         intent.putExtra(StickerPackDetailsActivity.EXTRA_STICKER_PACK_ID, stickerPack.identifier);
@@ -114,8 +134,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_adicionar_novo && stickerPack != null) {
-            Uri trayIconUri = StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile);
-            launchInfoActivity(stickerPack.publisherWebsite, stickerPack.publisherEmail, stickerPack.privacyPolicyWebsite, stickerPack.licenseAgreementWebsite, trayIconUri.toString());
+            Intent intent = new Intent(this, CriarFigurinhaActivity.class);
+            intent.putExtra(CriarFigurinhaActivity.EXTRA_STICKER_PACK_DATA, stickerPack);
+            startActivity(intent);
             return true;
         }
         return super.onOptionsItemSelected(item);

@@ -59,6 +59,7 @@
 
         <activity android:name=".list.MeuListagemActivity" />
         <activity android:name=".list.MeuStickerPackDetailsActivity" />
+        <activity android:name=".CriarFigurinhaActivity" />
 
         <provider
             android:name=".StickerContentProvider"

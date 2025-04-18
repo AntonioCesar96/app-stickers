@@ -109,11 +109,11 @@ public class MeuStickerPackDetailsActivity extends BaseActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_info && stickerPack != null) {
-            Uri trayIconUri = MeuContentsJsonHelper.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile);
-            launchInfoActivity(stickerPack.publisherWebsite, stickerPack.publisherEmail, stickerPack.privacyPolicyWebsite, stickerPack.licenseAgreementWebsite, trayIconUri.toString());
-            return true;
-        }
+//        if (item.getItemId() == R.id.ac && stickerPack != null) {
+//            Uri trayIconUri = MeuContentsJsonHelper.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile);
+//            launchInfoActivity(stickerPack.publisherWebsite, stickerPack.publisherEmail, stickerPack.privacyPolicyWebsite, stickerPack.licenseAgreementWebsite, trayIconUri.toString());
+//            return true;
+//        }
         return super.onOptionsItemSelected(item);
     }
 

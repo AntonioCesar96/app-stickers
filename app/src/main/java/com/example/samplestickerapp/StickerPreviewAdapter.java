@@ -30,7 +30,7 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     private static final float EXPANDED_STICKER_PREVIEW_BACKGROUND_ALPHA = 0.2f;
 
     @NonNull
-    private final StickerPack stickerPack;
+    public StickerPack stickerPack;
 
     private final int cellSize;
     private final int cellLimit;
