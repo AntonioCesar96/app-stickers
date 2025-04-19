@@ -57,9 +57,7 @@ public class CropOverlayView extends View {
     }
 
     /** Centraliza o crop com um tamanho inicial */
-    public void centerInitialCrop() {
-        int w = getWidth();
-        int h = getHeight();
+    public void centerInitialCrop(int w, int h) {
         int size = Math.min(maxCropSize, Math.min(w, h) - 2 * touchAreaSize);
         size = Math.max(size, minCropSize);
 

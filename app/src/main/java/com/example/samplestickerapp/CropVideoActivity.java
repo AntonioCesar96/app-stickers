@@ -5,6 +5,8 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
 
@@ -44,8 +46,7 @@ public class CropVideoActivity extends AppCompatActivity {
                 TypedValue.COMPLEX_UNIT_DIP, 5, getResources().getDisplayMetrics());
         FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
+                FrameLayout.LayoutParams.WRAP_CONTENT
         );
         videoParams.setMargins(marginPx, marginPx, marginPx, marginPx);
         videoContainer.setLayoutParams(videoParams);
@@ -125,13 +126,28 @@ public class CropVideoActivity extends AppCompatActivity {
         });
         videoView.start();
 
-        videoView.getViewTreeObserver().addOnGlobalLayoutListener(
-                new ViewTreeObserver.OnGlobalLayoutListener() {
+        videoView.getViewTreeObserver().addOnPreDrawListener(
+                new ViewTreeObserver.OnPreDrawListener() {
                     @Override
-                    public void onGlobalLayout() {
-                        videoView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                        cropOverlay.setMaxCropSize(videoView.getWidth());
-                        cropOverlay.centerInitialCrop();
+                    public boolean onPreDraw() {
+                        videoView.getViewTreeObserver().removeOnPreDrawListener(this);
+
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            videoDisplayedWidth  = videoView.getWidth();
+                            videoDisplayedHeight = videoView.getHeight();
+
+                            FrameLayout.LayoutParams newParams = new FrameLayout.LayoutParams(
+                                    videoDisplayedWidth,
+                                    videoDisplayedHeight
+                            );
+                            newParams.setMargins(marginPx, marginPx, marginPx, marginPx);
+                            videoContainer.setLayoutParams(newParams);
+
+                            cropOverlay.setMaxCropSize(videoView.getWidth());
+                            cropOverlay.centerInitialCrop(videoDisplayedWidth, videoDisplayedHeight);
+
+                        }, 100);
+                        return true;
                     }
                 }
         );
