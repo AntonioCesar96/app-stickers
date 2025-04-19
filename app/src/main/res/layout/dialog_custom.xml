@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- SCALE -->
+    <CheckBox
+        android:id="@+id/checkbox_estatico"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Estático"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Velocidade" />
+
+    <EditText
+        android:id="@+id/input_velocidade"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:text="1" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Frame Rate (FPS)" />
+
+    <EditText
+        android:id="@+id/input_velocidade_fps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:text="24" />
+
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Resolução (scale)" />
+
+    <EditText
+        android:id="@+id/input_scale"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:text="512:-1" />
+
+    <!-- START TIME -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Início do corte (start time)" />
+
+    <EditText
+        android:id="@+id/input_start_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:text="00:00:00" />
+
+    <!-- DURATION -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Duração da saída (segundos)" />
+
+    <EditText
+        android:id="@+id/input_duration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Em segundos"
+        android:inputType="number"
+        android:text="0" />
+
+    <!-- QUALITY -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Qualidade (crf ou qscale) (4 (alta) 10 (média) 20 (baixa))" />
+
+    <EditText
+        android:id="@+id/input_quality"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:text="4" />
+
+</LinearLayout>

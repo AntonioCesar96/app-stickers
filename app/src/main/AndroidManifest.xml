@@ -57,9 +57,8 @@
                 android:value="com.example.samplestickerapp.StickerPackDetailsActivity" />
         </activity>
 
-        <activity android:name=".list.MeuListagemActivity" />
-        <activity android:name=".list.MeuStickerPackDetailsActivity" />
         <activity android:name=".CriarFigurinhaActivity" />
+        <activity android:name=".CropVideoActivity" />
 
         <provider
             android:name=".StickerContentProvider"
