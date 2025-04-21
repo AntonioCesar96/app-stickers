@@ -208,7 +208,7 @@ public class ContentsJsonHelper {
         }
     }
 
-    private static void deleteRecursive(File fileOrDirectory) {
+    public static void deleteRecursive(File fileOrDirectory) {
         if (fileOrDirectory.isDirectory()) {
             File[] children = fileOrDirectory.listFiles();
             if (children != null) {

@@ -58,7 +58,14 @@
         </activity>
 
         <activity android:name=".CriarFigurinhaActivity" />
-        <activity android:name=".CropVideoActivity" />
+        <activity android:name=".CustomVideoRangeActivity">
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
+
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
+        </activity>
+        <activity android:name=".CropVideoActivity" android:windowSoftInputMode="adjustResize"/>
 
         <provider
             android:name=".StickerContentProvider"

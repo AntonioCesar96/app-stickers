@@ -1,125 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:argType="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="10dp"
-    android:paddingLeft="5dp"
-    android:paddingRight="5dp">
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
 
-
-    <ScrollView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:paddingLeft="5dp"
+        android:paddingRight="5dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <EditText
+            android:id="@+id/etVideoUrl"
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
-            android:orientation="vertical"
-            android:paddingBottom="5dp">
+            android:maxHeight="200dp"
+            android:hint="URL do gif/video"
+            android:inputType="textUri|textMultiLine" />
 
-            <EditText
-                android:id="@+id/etVideoUrl"
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                android:hint="URL do gif/video"
-                android:inputType="textUri|textMultiLine" />
+        <Button
+            android:id="@+id/btnColar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Colar"
+            android:textColor="#B6020F" />
 
-            <Button
-                android:id="@+id/btnComandos"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Opções de vídeo"
-                android:textColor="#B6020F" />
+        <Button
+            android:id="@+id/btnLimpar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Limpar"
+            android:textColor="#B6020F" />
 
-            <Button
-                android:id="@+id/btnBaixar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Baixar"
-                android:textColor="#B6020F" />
+        <Button
+            android:id="@+id/btnBaixar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Baixar"
+            android:textColor="#B6020F" />
 
-            <TextView
-                android:id="@+id/tvErro"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/btnTrim"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Trim"
+            android:textColor="#B6020F" />
 
-            <!--            <androidx.media3.ui.PlayerView-->
-            <!--                android:id="@+id/playerView"-->
-            <!--                android:layout_width="match_parent"-->
-            <!--                android:layout_height="wrap_content"-->
-            <!--                app:show_subtitle_button="false"-->
-            <!--                argType:fastforward_increment="15000"-->
-            <!--                argType:resize_mode="fixed_width"-->
-            <!--                argType:rewind_increment="15000"-->
-            <!--                argType:show_buffering="when_playing"-->
-            <!--                argType:show_fastforward_button="false"-->
-            <!--                argType:show_next_button="false"-->
-            <!--                argType:show_previous_button="false"-->
-            <!--                argType:show_rewind_button="false"-->
-            <!--                argType:show_subtitle_button="false"-->
-            <!--                argType:use_artwork="false"-->
-            <!--                argType:use_controller="true"-->
-            <!--                argType:use_sensor_rotation="true">-->
-            <!--            </androidx.media3.ui.PlayerView>-->
+        <Button
+            android:id="@+id/btnCrop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Crop"
+            android:textColor="#B6020F" />
 
-            <VideoView
-                android:id="@+id/vvOriginal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
+        <ProgressBar
+            android:id="@+id/sticker_loader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="invisible" />
 
-
-            <FrameLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="0dp"
-                android:layout_marginBottom="20dp">
-
-                <com.facebook.drawee.view.SimpleDraweeView
-                    android:id="@+id/sticker_details_expanded_sticker"
-                    android:layout_width="128dp"
-                    android:layout_height="128dp"
-                    android:layout_gravity="center_horizontal"
-                    android:scaleType="centerCrop"
-                    android:visibility="invisible" />
-
-                <ProgressBar
-                    android:id="@+id/sticker_loader"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:visibility="invisible" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/tvInfo"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:layout_marginBottom="5dp" />
-
-            <!--            <ImageView-->
-            <!--                android:id="@+id/ivOriginal"-->
-            <!--                android:layout_width="match_parent"-->
-            <!--                android:layout_height="wrap_content"-->
-            <!--                android:layout_marginBottom="5dp"/>-->
-
-            <Button
-                android:id="@+id/btnEnviarWhats"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="5dp"
-                android:text="Adicionar no pacote"
-                android:textColor="#B6020F" />
-
-        </LinearLayout>
-    </ScrollView>
-
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>

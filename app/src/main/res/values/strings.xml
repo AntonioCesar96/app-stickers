@@ -42,4 +42,11 @@
     <string name="sticker_pack_animation_indicator" tools:ignore="MissingTranslation">Animated sticker pack</string>
     <!-- text we display at the end of sticker pack details page showing that users can tap sticker to see bigger version -->
     <string name="sticker_pack_details_tap_to_preview" tools:ignore="MissingTranslation">Tap to preview sticker</string>
+
+    <string-array name="pix_fmt_array">
+        <item>yuv420p</item>
+        <item>yuva420p</item>
+        <item>rgb24</item>
+        <item>gray</item>
+    </string-array>
 </resources>

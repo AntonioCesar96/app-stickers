@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.util.List;
+import java.util.Locale;
 
 public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackListItemViewHolder> {
     @NonNull
@@ -80,7 +81,7 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         viewHolder.animatedStickerPackIndicator.setVisibility(pack.animatedStickerPack ? View.VISIBLE : View.GONE);
 
         viewHolder.publisherView.setText(pack.publisher);
-        viewHolder.filesizeView.setText(Formatter.formatShortFileSize(context, pack.getTotalSize()));
+        viewHolder.filesizeView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) pack.getTotalSize() / 1024.0) + " KB");
         viewHolder.titleView.setText(pack.name);
 
         viewHolder.container.setOnLongClickListener(v -> {

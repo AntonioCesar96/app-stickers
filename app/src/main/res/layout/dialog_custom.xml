@@ -1,92 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:maxHeight="400dp"
+    android:fillViewport="true">
 
-    <!-- SCALE -->
-    <CheckBox
-        android:id="@+id/checkbox_estatico"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Estático"/>
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Velocidade" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Velocidade" />
 
-    <EditText
-        android:id="@+id/input_velocidade"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="text"
-        android:text="1" />
+        <EditText
+            android:id="@+id/input_velocidade"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:text="1" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Frame Rate (FPS)" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Frame Rate por Segundo (FPS) (30 quadros por segundo! Se o vídeo tiver 5 segundos, são 150 quadros WebP)" />
 
-    <EditText
-        android:id="@+id/input_velocidade_fps"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="number"
-        android:text="24" />
+        <EditText
+            android:id="@+id/input_velocidade_fps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="24" />
 
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Resolução (scale)" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Resolução (scale)" />
 
-    <EditText
-        android:id="@+id/input_scale"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="text"
-        android:text="512:-1" />
+        <EditText
+            android:id="@+id/input_scale"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:text="512:-1" />
 
-    <!-- START TIME -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Início do corte (start time)" />
+        <!-- START TIME -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Início do corte (start time)" />
 
-    <EditText
-        android:id="@+id/input_start_time"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="text"
-        android:text="00:00:00" />
+        <EditText
+            android:id="@+id/input_start_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:text="00:00:00" />
 
-    <!-- DURATION -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Duração da saída (segundos)" />
+        <!-- DURATION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Duração da saída (segundos)" />
 
-    <EditText
-        android:id="@+id/input_duration"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Em segundos"
-        android:inputType="number"
-        android:text="0" />
+        <EditText
+            android:id="@+id/input_duration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Em segundos"
+            android:inputType="number"
+            android:text="0" />
 
-    <!-- QUALITY -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Qualidade (crf ou qscale) (4 (alta) 10 (média) 20 (baixa))" />
+        <!-- QUALITY -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Qualidade (deixe entre 15 e 40) (CRF baixo = qualidade alta = arquivo maior) (15 qualidade muito alta, quase sem perda)" />
 
-    <EditText
-        android:id="@+id/input_quality"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:inputType="number"
-        android:text="4" />
+        <EditText
+            android:id="@+id/input_quality"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="15" />
 
-</LinearLayout>
+        <!-- PIX_FMT -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Formato de pixel (pix_fmt)" />
+
+        <Spinner
+            android:id="@+id/spinner_pix_fmt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+</ScrollView>

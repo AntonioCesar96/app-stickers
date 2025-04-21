@@ -1,42 +1,124 @@
-<?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/rootLayout"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:background="#FFFFFF">
 
-    <!-- Container para o VideoView + CropOverlay -->
-    <FrameLayout
-        android:id="@+id/videoContainer"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_margin="5dp"
-        android:layout_gravity="center">
+        android:layout_above="@+id/bottom_buttons"
+        android:fillViewport="true">
 
-        <!-- Exibe o vídeo -->
-        <VideoView
-            android:id="@+id/videoView"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center" />
+            android:orientation="vertical"
+            android:padding="5dp">
 
-        <!-- Overlay para o crop -->
-        <com.example.samplestickerapp.CropOverlayView
-            android:id="@+id/cropOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            <ProgressBar
+                android:id="@+id/sticker_loader_video_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone" />
 
-    </FrameLayout>
+            <FrameLayout
+                android:id="@+id/video_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-    <!-- Botão para iniciar o crop -->
-    <Button
-        android:id="@+id/btnCrop"
-        android:layout_width="wrap_content"
+                <VideoView
+                    android:id="@+id/video_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <com.example.samplestickerapp.CropOverlayView
+                    android:id="@+id/crop_overlay"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/aaaaaaaaaaaa"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp">
+
+                <VideoView
+                    android:visibility="gone"
+                    android:id="@+id/video_view_preview"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_width="128dp"
+                    android:layout_height="128dp" />
+
+                <com.facebook.drawee.view.SimpleDraweeView
+                    android:id="@+id/sticker_details_expanded_sticker_preview"
+                    android:layout_width="128dp"
+                    android:layout_height="128dp"
+                    android:layout_gravity="center_horizontal"
+                    android:scaleType="centerCrop"
+                    android:visibility="invisible" />
+
+                <ProgressBar
+                    android:id="@+id/sticker_loader_preview"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="invisible" />
+
+            </FrameLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Botões fixos embaixo -->
+    <LinearLayout
+        android:id="@+id/bottom_buttons"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="16dp"
-        android:text="Crop"
-        android:textAllCaps="false"
-        android:padding="12dp" />
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:gravity="center_horizontal">
 
-</FrameLayout>
+        <ImageButton
+            android:id="@+id/btn_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_pause"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Pausar"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/btn_opcoes"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_editar"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Editar"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/btn_crop"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_preview"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Preview"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/btn_salvar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_save"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Salvar"/>
+    </LinearLayout>
+
+</RelativeLayout>

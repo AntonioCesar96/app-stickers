@@ -27,13 +27,13 @@ public class CropOverlayView extends View {
     private int maxCropSize = Integer.MAX_VALUE;
 
     // Área de toque para detecção de bordas
-    private final int touchAreaSize;
+    private int touchAreaSize;
 
     // Última posição de toque
     private int lastX, lastY;
 
-    public CropOverlayView(Context context) {
-        super(context);
+    public CropOverlayView(Context context, AttributeSet attrs) {
+        super(context, attrs);
         float density = getResources().getDisplayMetrics().density;
 
         // Inicializa paint
@@ -54,6 +54,17 @@ public class CropOverlayView extends View {
     /** Define o tamanho máximo permitido (p.ex. largura do VideoView) */
     public void setMaxCropSize(int max) {
         this.maxCropSize = max;
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+
+        // Define um quadrado centralizado com tamanho igual ao menor lado da view
+        int size = Math.min(w, h);
+        int left = (w - size) / 2;
+        int top = (h - size) / 2;
+        cropRect.set(left, top, left + size, top + size);
     }
 
     /** Centraliza o crop com um tamanho inicial */
