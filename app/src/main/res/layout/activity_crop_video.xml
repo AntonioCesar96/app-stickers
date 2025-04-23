@@ -1,6 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:argType="http://schemas.android.com/tools"
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -29,6 +28,7 @@
             <FrameLayout
                 android:id="@+id/video_container"
                 android:layout_gravity="center_horizontal"
+                android:background="@drawable/checkerboard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
@@ -44,6 +44,7 @@
 
             </FrameLayout>
 
+            <!-- preview e loader… -->
             <FrameLayout
                 android:id="@+id/aaaaaaaaaaaa"
                 android:layout_width="match_parent"
@@ -78,6 +79,7 @@
         </LinearLayout>
     </com.example.samplestickerapp.LockableScrollView>
 
+    <!-- aqui ficariam seus botões de ação (Crop, Salvar etc.) -->
     <!-- Botões fixos embaixo -->
     <LinearLayout
         android:id="@+id/bottom_buttons"
@@ -124,5 +126,4 @@
             android:background="?android:selectableItemBackgroundBorderless"
             android:contentDescription="Salvar"/>
     </LinearLayout>
-
 </RelativeLayout>

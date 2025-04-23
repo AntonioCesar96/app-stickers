@@ -7,22 +7,17 @@ import static com.example.samplestickerapp.StickerPackValidator.IMAGE_HEIGHT;
 import static com.example.samplestickerapp.StickerPackValidator.IMAGE_WIDTH;
 import static com.example.samplestickerapp.StickerPackValidator.KB_IN_BYTES;
 
-import android.app.ProgressDialog;
-import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.DisplayMetrics;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.ArrayAdapter;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -45,7 +40,6 @@ import com.arthenica.ffmpegkit.FFprobeKit;
 import com.arthenica.ffmpegkit.MediaInformation;
 import com.arthenica.ffmpegkit.MediaInformationSession;
 import com.arthenica.ffmpegkit.ReturnCode;
-import com.arthenica.ffmpegkit.Session;
 import com.arthenica.ffmpegkit.StreamInformation;
 import com.facebook.animated.webp.WebPImage;
 import com.facebook.drawee.backends.pipeline.Fresco;
@@ -57,7 +51,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,13 +68,10 @@ public class CropVideoActivity extends AppCompatActivity {
     private StickerPack stickerPack;
     private String extensaoArquivoOriginal;
     private int videoOriginalWidth, videoOriginalHeight;
-    private int videoDisplayedWidth, videoDisplayedHeight;
     File videoFile, fileCropped;
     ImageButton btnPause, btnSalvar, btnCrop, btnOpcoes;
-    Spinner spinnerPixFmt;
-    EditText inputVelocidade, inputVelocidadeFps, inputScale, inputStartTime, inputDuration, inputQuality;
-    String velocidade = "1", velocidadeFps = "30", pixFmt = "yuv420p";
-    String scale = "512:-1", startTime = "00:00:00", duration = "0", quality = "15";
+    EditText inputVelocidade, inputVelocidadeFps, inputCompressao, inputQuality, inputDuracao;
+    String velocidade = "1", velocidadeFps = "30", compression = "6", quality = "75", duracao = "0";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,7 +101,7 @@ public class CropVideoActivity extends AppCompatActivity {
         btnCrop.setOnClickListener(v -> {
             progressBarPreview.setVisibility(View.VISIBLE);
 
-            convertMp4ToWebpAdaptive3(75, 6, 30);
+            convertMp4ToWebpAdaptive();
 
         });
         btnOpcoes.setOnClickListener(v -> openDialogOpcoesVideo());
@@ -150,62 +140,7 @@ public class CropVideoActivity extends AppCompatActivity {
                         videoView.getViewTreeObserver().removeOnPreDrawListener(this);
 
                         // espera o vídeo renderizar...
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            // dimensões originais do vídeo (em pixels)
-                            int oriW = videoOriginalWidth;
-                            int oriH = videoOriginalHeight;
-
-                            // dimensões exibidas atualmente
-                            int dispW = videoView.getWidth();
-                            int dispH = videoView.getHeight();
-
-                            // converte 400dp em px
-                            DisplayMetrics dm = getResources().getDisplayMetrics();
-                            int maxH = (int) TypedValue.applyDimension(
-                                    TypedValue.COMPLEX_UNIT_DIP,
-                                    500,
-                                    dm
-                            );
-
-                            int marginPx = 0;
-
-                            // se a altura exibida é maior que 400dp, restringe a 400dp
-                            // e recalcula a largura para manter a proporção
-                            int finalW, finalH;
-                            if (dispH > maxH) {
-                                finalH = maxH;
-                                finalW = (int) ((float) maxH * oriW / (float) oriH);
-                            } else {
-                                finalH = dispH;
-                                finalW = dispW;
-
-                                // aplica margens (opcional)
-                                marginPx = (int) TypedValue.applyDimension(
-                                        TypedValue.COMPLEX_UNIT_DIP,
-                                        5,
-                                        dm
-                                );
-                            }
-
-                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                                    finalW,
-                                    finalH
-                            );
-                            lp.gravity = Gravity.CENTER_HORIZONTAL;
-                            if (marginPx != 0)
-                                lp.setMargins(marginPx, marginPx, marginPx, marginPx);
-                            videoContainer.setLayoutParams(lp);
-
-                            cropOverlay.setMaxCropSize(finalW);
-
-                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                //progressBarVideoView.setVisibility(View.INVISIBLE);
-                                //videoContainer.setVisibility(View.VISIBLE);
-
-                                //performCrop();
-                                convertMp4ToWebpAdaptive3(75, 6, 30);
-                            }, 100);
-                        }, 1000);
+                        new Handler().postDelayed(() -> setupContainerAndCrop(), 1000);
 
                         return true;
                     }
@@ -215,14 +150,46 @@ public class CropVideoActivity extends AppCompatActivity {
         cropOverlay.setOnOutsideCropClickListener((boolean flag) -> {
             lockableScrollView.setScrollingEnabled(flag);
         });
+    }
 
-        if (extensaoArquivoOriginal != null && extensaoArquivoOriginal.equals("gif")) {
-            velocidadeFps = "20";
-            pixFmt = "yuv420p";
-            quality = "30";
+    private void setupContainerAndCrop() {
+        // 1) lado do quadrado = largura da tela
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int screenW = dm.widthPixels;
+
+        // 2) calcula escala para manter proporção dentro do quadrado
+        float aspect = (float) videoOriginalWidth / (float) videoOriginalHeight;
+        int finalW, finalH;
+        if (aspect > 1f) {
+            finalW = screenW;
+            finalH = Math.round(screenW / aspect);
+        } else {
+            finalH = screenW;
+            finalW = Math.round(screenW * aspect);
         }
 
-        // TODO: fazer a tela de detalhes e listagem inicial mostrar as figurinhas ANIMADAS
+        // 3) aplica container quadrado
+        LinearLayout.LayoutParams containerLp = new LinearLayout.LayoutParams(
+                screenW, screenW
+        );
+        containerLp.gravity = Gravity.CENTER_HORIZONTAL;
+        videoContainer.setLayoutParams(containerLp);
+
+        // 4) centraliza VideoView
+        FrameLayout.LayoutParams videoLp = new FrameLayout.LayoutParams(
+                finalW, finalH
+        );
+        videoLp.gravity = Gravity.CENTER;
+        videoView.setLayoutParams(videoLp);
+
+        // 5) ajusta CropOverlay para todo o quadrado
+        cropOverlay.setMaxCropSize(screenW);
+        cropOverlay.centerInitialCrop(screenW, screenW);
+
+        // inicia conversão (exemplo)
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            convertMp4ToWebpAdaptive();
+        }, 100);
     }
 
     @Override
@@ -234,161 +201,13 @@ public class CropVideoActivity extends AppCompatActivity {
         btnPause.setImageResource(R.drawable.ic_pause);
     }
 
-    private void performCrop() {
-
-//        try {
-//            convertMp4ToWebpAdaptive(
-//                    23,    // CRF inicial para MP4
-//                    "500k",     // bitrate inicial
-//                    30     // initialFps
-//            );
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-
-
-        // medidas da View na tela
-        videoDisplayedWidth = videoView.getWidth();
-        videoDisplayedHeight = videoView.getHeight();
-
-        // 1. Retângulo de crop em coordenadas de View
-        Rect rect = cropOverlay.getCropRect();
-        int xOnScreen = rect.left;
-        int yOnScreen = rect.top;
-        int wOnScreen = rect.width();
-        int hOnScreen = rect.height();
-
-        // 2. Fatores de escala
-        float scaleX = (float) videoOriginalWidth / videoDisplayedWidth;
-        float scaleY = (float) videoOriginalHeight / videoDisplayedHeight;
-
-        // 3. Coordenadas para o vídeo original
-        int cropX = Math.round(xOnScreen * scaleX);
-        int cropY = Math.round(yOnScreen * scaleY);
-        int cropW = Math.round(wOnScreen * scaleX);
-        int cropH = Math.round(hOnScreen * scaleY);
-
-        // 4. Monta filtro FFmpeg
-        String cropFilter = String.format(Locale.US, "crop=%d:%d:%d:%d", cropW, cropH, cropX, cropY);
-
-        fileCropped = getFileCropped();
-
-        int velocidadeFpsValue = velocidadeFps.equals("0") ? 30 : (Math.min(Integer.parseInt(velocidadeFps), 45));
-        double adjustedValue = velocidade.equals("0") ? 1 : 1 / Double.parseDouble(velocidade);
-
-        String ffmpegCommand = "-i " + videoFile.getAbsolutePath();
-        ffmpegCommand += " -filter:v \"" + cropFilter + ",setpts=" + adjustedValue + "*PTS,fps=" + velocidadeFpsValue + ",scale=" + scale + "\"";
-        ffmpegCommand += " -ss " + startTime;
-        if (!duration.equals("0"))
-            ffmpegCommand += " -t " + duration;
-        ffmpegCommand += " -loop 0";
-        ffmpegCommand += " -crf " + quality;
-        ffmpegCommand += " -preset default -an -lossless 0 -c:v libwebp -f webp " + fileCropped.getAbsolutePath();
-
-        FFmpegKitExecuteAsync(ffmpegCommand);
-    }
-
-    private void FFmpegKitExecuteAsync(String ffmpegCommand) {
-        // 1. Recupera a duração total do vídeo (ms)
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        retriever.setDataSource(videoFile.getAbsolutePath());
-        String timeStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-        final long totalDurationMs = Long.parseLong(timeStr);
-        retriever.release();
-
-        // 2. Cria e exibe o ProgressDialog não cancelável
-        ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("Processando vídeo");
-        progressDialog.setMessage("Aguarde...");
-        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        progressDialog.setMax(100);
-        progressDialog.setCancelable(false);
-        progressDialog.show();
-
-        // 3. Executa o FFmpeg com callbacks de execução, log e estatísticas
-        FFmpegKit.executeAsync(ffmpegCommand,
-                // ExecuteCallback
-                session -> {
-                    ReturnCode returnCode = session.getReturnCode();
-                    // Fecha o dialog sempre que terminar
-                    runOnUiThread(progressDialog::dismiss);
-
-                    if (ReturnCode.isSuccess(returnCode)) {
-                        // Aqui, coloque seu código original de UI update (ex.: exibir WebP, etc.)
-                        runOnUiThread(() -> {
-
-                            byte[] bytes = getBytes(fileCropped);
-                            final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-
-                            String infos = "Altura: " + webPImage.getHeight();
-                            infos += "\nLargura: " + webPImage.getWidth();
-                            infos += "\nQtd Frames: " + webPImage.getFrameCount();
-                            infos += "\nDuração: " + webPImage.getDuration() / 1000 + " segundos";
-                            infos += "\nTamanho: " + String.format(new Locale("pt", "BR"), "%.2f", (double) webPImage.getSizeInBytes() / 1024.0) + " KB";
-
-                            final Uri stickerAssetUri = Uri.fromFile(fileCropped)
-                                    .buildUpon()
-                                    .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
-                                    .build();
-                            DraweeController controller = Fresco.newDraweeControllerBuilder()
-                                    .setUri(stickerAssetUri)
-                                    .setAutoPlayAnimations(true)
-                                    .build();
-
-                            expandedStickerPreview.setImageResource(R.drawable.sticker_error);
-                            expandedStickerPreview.setController(controller);
-                            videoView.seekTo(0);
-
-                            expandedStickerPreview.setVisibility(View.VISIBLE);
-                            progressBarPreview.setVisibility(View.INVISIBLE);
-
-                            videoContainer.setVisibility(View.VISIBLE);
-                            progressBarVideoView.setVisibility(View.GONE);
-
-                            String finalInfos = infos;
-                            expandedStickerPreview.setOnClickListener(view -> {
-                                Toast.makeText(this,
-                                        finalInfos,
-                                        Toast.LENGTH_LONG).show();
-                            });
-                        });
-                    } else {
-                        String failStack = session.getFailStackTrace();
-                        runOnUiThread(() ->
-                                Toast.makeText(this,
-                                        "Erro ao cortar vídeo: " + failStack,
-                                        Toast.LENGTH_LONG).show()
-                        );
-                    }
-                },
-                session -> { /* no-op log callback */ },
-                statistics -> {
-                    double timeMs = statistics.getTime();
-                    // Calcula a percentagem
-                    final int progress = (int) ((timeMs / (double) totalDurationMs) * 100);
-
-                    // Atualiza o progresso na UI
-                    runOnUiThread(() -> progressDialog.setProgress(progress));
-
-                }
-        );
-    }
-
-
-
-    public void convertMp4ToWebpAdaptive3(
-            int initialQuality,
-            int compressionLvl,
-            int initialFps
-    ) {
-        // 1) Prepare crop and metadata once
-        videoDisplayedWidth = videoView.getWidth();
-        videoDisplayedHeight = videoView.getHeight();
-        Rect rect = cropOverlay.getCropRect();
-        float scaleX = (float) videoOriginalWidth / videoDisplayedWidth;
-        float scaleY = (float) videoOriginalHeight / videoDisplayedHeight;
+    public void convertMp4ToWebpAdaptive() {
+        int initialQuality = Integer.parseInt(quality);
+        int compressionLvl = Integer.parseInt(compression);
+        int initialFps = Integer.parseInt(velocidadeFps);
 
         // Probe video to get original dimensions & duration
+        // 1) Probe
         MediaInformationSession probe = FFprobeKit.getMediaInformation(videoFile.getAbsolutePath());
         MediaInformation info = probe.getMediaInformation();
         StreamInformation vStream = info.getStreams().stream()
@@ -397,6 +216,7 @@ public class CropVideoActivity extends AppCompatActivity {
                 .orElseThrow(() -> new RuntimeException("Stream de vídeo não encontrado"));
         final int origW = Integer.parseInt(vStream.getWidth().toString());
         final int origH = Integer.parseInt(vStream.getHeight().toString());
+        final int origSquare = Math.max(origW, origH);
         final long videoDurationMs = (long) Double.parseDouble(info.getDuration()) * 1000;  // milliseconds
 
         final long MAX_SIZE = 500 * 1024;   // 500 KB
@@ -424,7 +244,10 @@ public class CropVideoActivity extends AppCompatActivity {
             int quality = initialQuality;
             int compression = compressionLvl;
             int fps = initialFps;
+            double velocity = Double.parseDouble(velocidade);
             int attempt = 0;
+            long sizeAnterior = 0;
+            int sizeAnteriorTentativas = 0;
 
             void runAttempt() {
                 attempt++;
@@ -435,24 +258,32 @@ public class CropVideoActivity extends AppCompatActivity {
                 });
 
                 // build crop filter
+                // 2) mapeia crop do usuário
                 Rect r = cropOverlay.getCropRect();
-                int cropX = Math.round(r.left * scaleX);
-                int cropY = Math.round(r.top * scaleY);
-                int cropW = Math.round(r.width() * scaleX);
-                int cropH = Math.round(r.height() * scaleY);
-                String cropFilter = String.format(Locale.US,
-                        "crop=%d:%d:%d:%d", cropW, cropH, cropX, cropY);
+                int containerSide = getResources().getDisplayMetrics().widthPixels;
+                float mapFactor = (float) origSquare / containerSide;
+                int cropX = Math.round(r.left * mapFactor);
+                int cropY = Math.round(r.top * mapFactor);
+                int cropW = Math.round(r.width() * mapFactor);
+                int cropH = Math.round(r.height() * mapFactor);
 
                 // full video filter
-                String vf = String.format(Locale.US,
-                        "%s,scale=512:512:force_original_aspect_ratio=decrease," +
-                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black,fps=%d",
-                        cropFilter, fps);
+                String vfFilter = String.format(Locale.US,
+                        "format=rgba,pad=%d:%d:(%d-iw)/2:(%d-ih)/2:color=#00000000," +  // pad com transparência :contentReference[oaicite:0]{index=0}
+                                "crop=%d:%d:%d:%d," +                                // crop exato
+                                "scale=512:512:force_original_aspect_ratio=decrease," +
+                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000," + // pad final com transparência :contentReference[oaicite:2]{index=2}
+                                (velocity == 0 ? "" : ("setpts=" + (1 / Double.parseDouble(velocidade)) + "*PTS,")) +
+                                "fps=%d",
+                        origSquare, origSquare, origSquare, origSquare,
+                        cropW, cropH, cropX, cropY,
+                        fps
+                );
 
                 String cmd = String.format(Locale.US,
-                        "-y -i \"%s\" -vf \"%s\" -c:v libwebp -lossless 0 " +
+                        "-y -i \"%s\" -vf \"%s\" -c:v libwebp_anim -lossless 0 " +
                                 "-q:v %d -compression_level %d -preset default -loop 0 -an -vsync 0 \"%s\"",
-                        videoFile.getAbsolutePath(), vf, quality, compression,
+                        videoFile.getAbsolutePath(), vfFilter, quality, compression,
                         webpFile.getAbsolutePath());
 
                 // execute async to get progress callbacks
@@ -489,6 +320,25 @@ public class CropVideoActivity extends AppCompatActivity {
                                 infoTv.setText(webpInfos);
                             });
 
+                            if (sizeAnterior == 0)
+                                sizeAnterior = size;
+                            else if (sizeAnterior != size)
+                                sizeAnterior = size;
+                            else {
+                                if (sizeAnteriorTentativas > 2) {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(CropVideoActivity.this,
+                                                "Processo não consegue reduzir o tamanho da figurinha para igual ou menos de 500kb, ajuste os parametros e tente novamente",
+                                                Toast.LENGTH_SHORT).show();
+
+                                        progressDialog.dismiss();
+                                        showResult(webpFile);
+                                    });
+                                    return;
+                                }
+                                sizeAnteriorTentativas++;
+                            }
+
                             if (size <= MAX_SIZE) {
                                 runOnUiThread(() -> {
                                     progressDialog.dismiss();
@@ -497,7 +347,12 @@ public class CropVideoActivity extends AppCompatActivity {
                             } else {
                                 // adjust params for next iteration
                                 if (quality > 40) quality = Math.max(0, quality - 10);
-                                if (fps > 10) fps = Math.max(10, fps - 2);
+
+                                if (fps > 15)
+                                    fps = Math.max(15, fps - 2);
+                                else if (fps > 1)
+                                    fps = fps - 1;
+
                                 // next try
                                 runAttempt();
                             }
@@ -506,7 +361,7 @@ public class CropVideoActivity extends AppCompatActivity {
                         statistics -> {
                             // update progress (% of total duration)
                             double time = statistics.getTime();
-                            final int percent = (int)(100f * time / videoDurationMs);
+                            final int percent = (int) (100f * time / videoDurationMs);
                             runOnUiThread(() -> progressBar.setProgress(percent));
                         }
                 );
@@ -526,8 +381,8 @@ public class CropVideoActivity extends AppCompatActivity {
                 webPImage.getHeight(),
                 webPImage.getWidth(),
                 webPImage.getFrameCount(),
-                webPImage.getDuration()/1000f,
-                webPImage.getSizeInBytes()/1024f
+                webPImage.getDuration() / 1000f,
+                webPImage.getSizeInBytes() / 1024f
         );
         Uri uri = Uri.fromFile(webpFile)
                 .buildUpon()
@@ -599,31 +454,18 @@ public class CropVideoActivity extends AppCompatActivity {
 
         inputVelocidade = dialogView.findViewById(R.id.input_velocidade);
         inputVelocidadeFps = dialogView.findViewById(R.id.input_velocidade_fps);
-        inputScale = dialogView.findViewById(R.id.input_scale);
-        inputStartTime = dialogView.findViewById(R.id.input_start_time);
-        inputDuration = dialogView.findViewById(R.id.input_duration);
+        inputCompressao = dialogView.findViewById(R.id.input_compression);
         inputQuality = dialogView.findViewById(R.id.input_quality);
-        spinnerPixFmt = dialogView.findViewById(R.id.spinner_pix_fmt);
-
-        ArrayAdapter<CharSequence> pixFmtAdapter = ArrayAdapter.createFromResource(
-                this, R.array.pix_fmt_array, android.R.layout.simple_spinner_item);
-        pixFmtAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerPixFmt.setAdapter(pixFmtAdapter);
 
         resetInputs();
 
         builder.setPositiveButton("OK", (dialog, which) -> {
             velocidade = inputVelocidade.getText().toString().trim();
             velocidadeFps = inputVelocidadeFps.getText().toString().trim();
-            scale = inputScale.getText().toString().trim();
-            startTime = inputStartTime.getText().toString().trim();
-            duration = inputDuration.getText().toString().trim();
+            compression = inputCompressao.getText().toString().trim();
             quality = inputQuality.getText().toString().trim();
-            pixFmt = spinnerPixFmt.getSelectedItem().toString();
 
-            if (velocidade.isEmpty() || velocidadeFps.isEmpty() || scale.isEmpty()
-                    || startTime.isEmpty() || duration.isEmpty() || quality.isEmpty()) {
-
+            if (velocidade.isEmpty() || velocidadeFps.isEmpty() || compression.isEmpty() || quality.isEmpty()) {
                 Toast.makeText(this, "Preencha todos os campos antes de gerar o comando.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -643,11 +485,8 @@ public class CropVideoActivity extends AppCompatActivity {
     private void resetInputs() {
         inputVelocidade.setText(velocidade);
         inputVelocidadeFps.setText(velocidadeFps);
-        inputScale.setText(scale);
-        inputStartTime.setText(startTime);
-        inputDuration.setText(duration);
+        inputCompressao.setText(compression);
         inputQuality.setText(quality);
-        //spinnerPixFmt.setSelection(0);
     }
 
     public String getNextStickerPrefix() {

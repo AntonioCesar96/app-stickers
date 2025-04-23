@@ -370,7 +370,7 @@ public class FileExplorerActivity extends AppCompatActivity {
 
         // Show non-cancelable progress dialog
         ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("Processing Video");
+        progressDialog.setTitle("Processando o vídeo");
         progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progressDialog.setIndeterminate(false);
         progressDialog.setMax(100);

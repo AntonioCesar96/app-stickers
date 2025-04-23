@@ -35,40 +35,14 @@
             android:inputType="number"
             android:text="24" />
 
-
+        <!-- Compressão -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Resolução (scale)" />
+            android:text="Compressão" />
 
         <EditText
-            android:id="@+id/input_scale"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text"
-            android:text="512:-1" />
-
-        <!-- START TIME -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Início do corte (start time)" />
-
-        <EditText
-            android:id="@+id/input_start_time"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text"
-            android:text="00:00:00" />
-
-        <!-- DURATION -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Duração da saída (segundos)" />
-
-        <EditText
-            android:id="@+id/input_duration"
+            android:id="@+id/input_compression"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Em segundos"
@@ -88,15 +62,5 @@
             android:inputType="number"
             android:text="15" />
 
-        <!-- PIX_FMT -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Formato de pixel (pix_fmt)" />
-
-        <Spinner
-            android:id="@+id/spinner_pix_fmt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
     </LinearLayout>
 </ScrollView>
