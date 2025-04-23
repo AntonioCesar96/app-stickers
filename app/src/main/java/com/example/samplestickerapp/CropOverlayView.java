@@ -116,6 +116,12 @@ public class CropOverlayView extends View {
                 lastX = x;
                 lastY = y;
                 dragMode = detectDragMode(x, y);
+
+                outsideCropClickListener.onOutsideClick(false);
+                if (dragMode == DragMode.NONE) {
+                    outsideCropClickListener.onOutsideClick(true);
+                }
+
                 return dragMode != DragMode.NONE;
 
             case MotionEvent.ACTION_MOVE:
@@ -150,6 +156,7 @@ public class CropOverlayView extends View {
                 return true;
 
             case MotionEvent.ACTION_UP:
+                outsideCropClickListener.onOutsideClick(true);
             case MotionEvent.ACTION_CANCEL:
                 dragMode = DragMode.NONE;
                 return true;
@@ -231,4 +238,15 @@ public class CropOverlayView extends View {
     public Rect getCropRect() {
         return new Rect(cropRect);
     }
+
+    public interface OnOutsideCropClickListener {
+        void onOutsideClick(boolean flag);
+    }
+
+    private OnOutsideCropClickListener outsideCropClickListener;
+
+    public void setOnOutsideCropClickListener(OnOutsideCropClickListener listener) {
+        this.outsideCropClickListener = listener;
+    }
+
 }

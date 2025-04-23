@@ -1,6 +1,8 @@
 package com.example.samplestickerapp;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
@@ -19,7 +21,10 @@ import android.os.Looper;
 import android.widget.TextView;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Locale;
+import java.util.Objects;
 
 import android.media.MediaPlayer.OnSeekCompleteListener;
 
@@ -44,14 +49,22 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     private int currentStartMs = 0, currentEndMs = 8000;
 
     private StickerPack stickerPack;
-    SimpleExoPlayer player;
+    private SimpleExoPlayer player;
+
+    File videoFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_custom_video_range);
 
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Aparar(Trim)");
+        }
+
         stickerPack = getIntent().getParcelableExtra("sticker_pack");
+        videoFile = new File(Objects.requireNonNull(getIntent().getStringExtra("file_path")));
 
         rangeSeekBar = findViewById(R.id.rangeSeekBar);
         showRangeButton = findViewById(R.id.show_range_button);
@@ -62,6 +75,7 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
             trimVideoWithFFmpegKit();
         });
 
+        // initializeWithResize();
         initializePlayer();
     }
 
@@ -79,7 +93,6 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
         playerView.setPlayer(player);
 
         // Defina o caminho do vídeo (ajuste conforme necessário)
-        File videoFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original.mp4");
         Uri videoUri = Uri.fromFile(videoFile);
 
         // Cria um MediaItem a partir da URI do vídeo
@@ -183,6 +196,12 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+            finish();
+            return;
+        }
+
         if (player == null) {
             initializePlayer();
             return;
@@ -222,9 +241,82 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
         return String.format("%02d:%02d", minutes, seconds);
     }
 
+
+    private void initializeWithResize() {
+        String inputPath = videoFile.getAbsolutePath();
+
+        // Video ja vem reduzido
+        File outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        String outputPath = outputFile.getAbsolutePath();
+        if (outputFile.exists()) {
+            outputFile.delete();
+            outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        }
+
+        // Recupera dimensões originais
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(inputPath);
+        int width = Integer.parseInt(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+        int height = Integer.parseInt(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+        long durationMs = Long.parseLong(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+        retriever.release();
+
+        // Build scale filter if needed
+        String videoFilter = "";
+        if (width > 512) {
+            videoFilter = "-vf \"scale=512:-2,fps=20\"";
+        } else {
+            videoFilter = "-vf \"fps=20\"";
+        }
+
+        // Prepare FFmpeg command
+        String ffmpegCommand = String.format(Locale.US,
+                "-y -i \"%s\" %s -c:v libx264 -preset veryslow -b:v 500k -crf 28 -an \"%s\"",
+                inputPath, videoFilter, outputPath
+        );
+
+        // Show non-cancelable progress dialog
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Processing Video");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setIndeterminate(false);
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // Execute FFmpegKit asynchronously with progress callback
+        FFmpegKit.executeAsync(ffmpegCommand,
+                session -> {
+                    // Dismiss dialog and handle completion on UI thread
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        if (ReturnCode.isSuccess(session.getReturnCode())) {
+                            initializePlayer();
+                        } else {
+                            Toast.makeText(this,
+                                    "Falha ao processar vídeo. Veja o log para detalhes.",
+                                    Toast.LENGTH_LONG).show();
+                            Log.e("FFmpegKit",
+                                    session.getAllLogsAsString());
+                        }
+                    });
+                },
+                session -> { /* no-op log callback */ },
+                statistics -> {
+                    // Update progress
+                    double timeMs = statistics.getTime();
+                    int percent = (int) ((timeMs / (float) durationMs) * 100);
+                    runOnUiThread(() -> progressDialog.setProgress(percent));
+                }
+        );
+    }
+
     private void trimVideoWithFFmpegKit() {
-        File inputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original.mp4");
-        String inputPath = inputFile.getAbsolutePath();
+        // File inputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        String inputPath = videoFile.getAbsolutePath();
 
         File outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_trimmed.mp4");
         String outputPath = outputDir.getAbsolutePath();
@@ -257,6 +349,7 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Intent intent = new Intent(this, CropVideoActivity.class);
                     intent.putExtra("sticker_pack", stickerPack);
+                    intent.putExtra("file_path", outputPath);
                     startActivity(intent);
                 });
             } else {

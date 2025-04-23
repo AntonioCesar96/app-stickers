@@ -7,17 +7,22 @@ import static com.example.samplestickerapp.StickerPackValidator.IMAGE_HEIGHT;
 import static com.example.samplestickerapp.StickerPackValidator.IMAGE_WIDTH;
 import static com.example.samplestickerapp.StickerPackValidator.KB_IN_BYTES;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.widget.ArrayAdapter;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -31,11 +36,13 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.FFprobeKit;
+import com.arthenica.ffmpegkit.MediaInformation;
 import com.arthenica.ffmpegkit.MediaInformationSession;
 import com.arthenica.ffmpegkit.ReturnCode;
 import com.arthenica.ffmpegkit.Session;
@@ -50,6 +57,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,6 +66,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 public class CropVideoActivity extends AppCompatActivity {
+    private LockableScrollView lockableScrollView;
     private VideoView videoView, videoViewPreview;
     private SimpleDraweeView expandedStickerPreview;
     private FrameLayout videoContainer;
@@ -79,9 +88,15 @@ public class CropVideoActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_crop_video);
 
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Cortar(Crop)");
+        }
+
         videoView = findViewById(R.id.video_view);
         videoView.setZOrderMediaOverlay(true);
 
+        lockableScrollView = findViewById(R.id.lockableScrollView);
         videoViewPreview = findViewById(R.id.video_view_preview);
         progressBarPreview = findViewById(R.id.sticker_loader_preview);
         progressBarVideoView = findViewById(R.id.sticker_loader_video_view);
@@ -95,7 +110,9 @@ public class CropVideoActivity extends AppCompatActivity {
 
         btnCrop.setOnClickListener(v -> {
             progressBarPreview.setVisibility(View.VISIBLE);
-            performCrop();
+
+            convertMp4ToWebpAdaptive3(75, 6, 30);
+
         });
         btnOpcoes.setOnClickListener(v -> openDialogOpcoesVideo());
         btnSalvar.setOnClickListener(v -> enviarWhatsapp());
@@ -110,19 +127,18 @@ public class CropVideoActivity extends AppCompatActivity {
         });
 
         stickerPack = getIntent().getParcelableExtra("sticker_pack");
-        extensaoArquivoOriginal = getIntent().getStringExtra("extensao_arquivo");
-
-        videoFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_trimmed.mp4");
-        if (!videoFile.exists())
-            videoFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original.mp4");
+        videoFile = new File(Objects.requireNonNull(getIntent().getStringExtra("file_path")));
 
         videoView.setVideoPath(videoFile.getAbsolutePath());
         videoView.setOnPreparedListener(mp -> {
             mp.setLooping(true);
+
             videoOriginalWidth = mp.getVideoWidth();
             videoOriginalHeight = mp.getVideoHeight();
+
+            videoView.start();
         });
-        videoView.start();
+
 
         progressBarVideoView.setVisibility(View.VISIBLE);
         videoContainer.setVisibility(View.INVISIBLE);
@@ -133,32 +149,72 @@ public class CropVideoActivity extends AppCompatActivity {
                     public boolean onPreDraw() {
                         videoView.getViewTreeObserver().removeOnPreDrawListener(this);
 
+                        // espera o vídeo renderizar...
                         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            videoDisplayedWidth = videoView.getWidth();
-                            videoDisplayedHeight = videoView.getHeight();
+                            // dimensões originais do vídeo (em pixels)
+                            int oriW = videoOriginalWidth;
+                            int oriH = videoOriginalHeight;
 
-                            LinearLayout.LayoutParams newParams = new LinearLayout.LayoutParams(
-                                    videoDisplayedWidth,
-                                    videoDisplayedHeight
+                            // dimensões exibidas atualmente
+                            int dispW = videoView.getWidth();
+                            int dispH = videoView.getHeight();
+
+                            // converte 400dp em px
+                            DisplayMetrics dm = getResources().getDisplayMetrics();
+                            int maxH = (int) TypedValue.applyDimension(
+                                    TypedValue.COMPLEX_UNIT_DIP,
+                                    500,
+                                    dm
                             );
-                            int marginPx = (int) TypedValue.applyDimension(
-                                    TypedValue.COMPLEX_UNIT_DIP, 5, getResources().getDisplayMetrics());
-                            newParams.setMargins(marginPx, marginPx, marginPx, marginPx);
-                            videoContainer.setLayoutParams(newParams);
 
-                            cropOverlay.setMaxCropSize(videoView.getWidth());
-                            //cropOverlay.centerInitialCrop(videoDisplayedWidth, videoDisplayedHeight);
+                            int marginPx = 0;
+
+                            // se a altura exibida é maior que 400dp, restringe a 400dp
+                            // e recalcula a largura para manter a proporção
+                            int finalW, finalH;
+                            if (dispH > maxH) {
+                                finalH = maxH;
+                                finalW = (int) ((float) maxH * oriW / (float) oriH);
+                            } else {
+                                finalH = dispH;
+                                finalW = dispW;
+
+                                // aplica margens (opcional)
+                                marginPx = (int) TypedValue.applyDimension(
+                                        TypedValue.COMPLEX_UNIT_DIP,
+                                        5,
+                                        dm
+                                );
+                            }
+
+                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                                    finalW,
+                                    finalH
+                            );
+                            lp.gravity = Gravity.CENTER_HORIZONTAL;
+                            if (marginPx != 0)
+                                lp.setMargins(marginPx, marginPx, marginPx, marginPx);
+                            videoContainer.setLayoutParams(lp);
+
+                            cropOverlay.setMaxCropSize(finalW);
 
                             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                progressBarPreview.setVisibility(View.INVISIBLE);
-                                performCrop();
-                            }, 100);
+                                //progressBarVideoView.setVisibility(View.INVISIBLE);
+                                //videoContainer.setVisibility(View.VISIBLE);
 
+                                //performCrop();
+                                convertMp4ToWebpAdaptive3(75, 6, 30);
+                            }, 100);
                         }, 1000);
+
                         return true;
                     }
                 }
         );
+
+        cropOverlay.setOnOutsideCropClickListener((boolean flag) -> {
+            lockableScrollView.setScrollingEnabled(flag);
+        });
 
         if (extensaoArquivoOriginal != null && extensaoArquivoOriginal.equals("gif")) {
             velocidadeFps = "20";
@@ -168,26 +224,6 @@ public class CropVideoActivity extends AppCompatActivity {
 
         // TODO: fazer a tela de detalhes e listagem inicial mostrar as figurinhas ANIMADAS
     }
-
-    private void previewFigurinha() {
-        fileCropped = getFileCropped();
-
-        // TODO: alterar para pegar o valor das variaveis agora
-        int velocidadeFpsValue = velocidadeFps.equals("0") ? 30 : (Math.min(Integer.parseInt(velocidadeFps), 45));
-        double adjustedValue = velocidade.equals("0") ? 1 : 1 / Double.parseDouble(velocidade);
-
-        String ffmpegCommand = "-i " + videoFile.getAbsolutePath();
-        ffmpegCommand += " -filter:v \"setpts=" + adjustedValue + "*PTS,fps=" + velocidadeFpsValue + ",scale=" + scale + "\"";
-        ffmpegCommand += " -ss " + startTime;
-        if (!duration.equals("0"))
-            ffmpegCommand += " -t " + duration;
-        ffmpegCommand += " -loop 0";
-        ffmpegCommand += " -crf " + quality;
-        ffmpegCommand += " -preset default -pix_fmt " + pixFmt + " -an -lossless 0 " + fileCropped.getAbsolutePath();
-
-        FFmpegKitExecuteAsync(ffmpegCommand);
-    }
-
 
     @Override
     protected void onResume() {
@@ -199,6 +235,18 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private void performCrop() {
+
+//        try {
+//            convertMp4ToWebpAdaptive(
+//                    23,    // CRF inicial para MP4
+//                    "500k",     // bitrate inicial
+//                    30     // initialFps
+//            );
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+
+
         // medidas da View na tela
         videoDisplayedWidth = videoView.getWidth();
         videoDisplayedHeight = videoView.getHeight();
@@ -220,7 +268,6 @@ public class CropVideoActivity extends AppCompatActivity {
         int cropW = Math.round(wOnScreen * scaleX);
         int cropH = Math.round(hOnScreen * scaleY);
 
-
         // 4. Monta filtro FFmpeg
         String cropFilter = String.format(Locale.US, "crop=%d:%d:%d:%d", cropW, cropH, cropX, cropY);
 
@@ -236,212 +283,274 @@ public class CropVideoActivity extends AppCompatActivity {
             ffmpegCommand += " -t " + duration;
         ffmpegCommand += " -loop 0";
         ffmpegCommand += " -crf " + quality;
-        ffmpegCommand += " -preset default -pix_fmt " + pixFmt + " -an -lossless 0 " + fileCropped.getAbsolutePath();
+        ffmpegCommand += " -preset default -an -lossless 0 -c:v libwebp -f webp " + fileCropped.getAbsolutePath();
 
         FFmpegKitExecuteAsync(ffmpegCommand);
     }
 
-    public void convertMp4ToWebpAdaptive(
-            float xOnScreen,
-            float yOnScreen,
-            float wOnScreen,
-            float hOnScreen,
-            float scaleX,
-            float scaleY,
+    private void FFmpegKitExecuteAsync(String ffmpegCommand) {
+        // 1. Recupera a duração total do vídeo (ms)
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(videoFile.getAbsolutePath());
+        String timeStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        final long totalDurationMs = Long.parseLong(timeStr);
+        retriever.release();
+
+        // 2. Cria e exibe o ProgressDialog não cancelável
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Processando vídeo");
+        progressDialog.setMessage("Aguarde...");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // 3. Executa o FFmpeg com callbacks de execução, log e estatísticas
+        FFmpegKit.executeAsync(ffmpegCommand,
+                // ExecuteCallback
+                session -> {
+                    ReturnCode returnCode = session.getReturnCode();
+                    // Fecha o dialog sempre que terminar
+                    runOnUiThread(progressDialog::dismiss);
+
+                    if (ReturnCode.isSuccess(returnCode)) {
+                        // Aqui, coloque seu código original de UI update (ex.: exibir WebP, etc.)
+                        runOnUiThread(() -> {
+
+                            byte[] bytes = getBytes(fileCropped);
+                            final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+
+                            String infos = "Altura: " + webPImage.getHeight();
+                            infos += "\nLargura: " + webPImage.getWidth();
+                            infos += "\nQtd Frames: " + webPImage.getFrameCount();
+                            infos += "\nDuração: " + webPImage.getDuration() / 1000 + " segundos";
+                            infos += "\nTamanho: " + String.format(new Locale("pt", "BR"), "%.2f", (double) webPImage.getSizeInBytes() / 1024.0) + " KB";
+
+                            final Uri stickerAssetUri = Uri.fromFile(fileCropped)
+                                    .buildUpon()
+                                    .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
+                                    .build();
+                            DraweeController controller = Fresco.newDraweeControllerBuilder()
+                                    .setUri(stickerAssetUri)
+                                    .setAutoPlayAnimations(true)
+                                    .build();
+
+                            expandedStickerPreview.setImageResource(R.drawable.sticker_error);
+                            expandedStickerPreview.setController(controller);
+                            videoView.seekTo(0);
+
+                            expandedStickerPreview.setVisibility(View.VISIBLE);
+                            progressBarPreview.setVisibility(View.INVISIBLE);
+
+                            videoContainer.setVisibility(View.VISIBLE);
+                            progressBarVideoView.setVisibility(View.GONE);
+
+                            String finalInfos = infos;
+                            expandedStickerPreview.setOnClickListener(view -> {
+                                Toast.makeText(this,
+                                        finalInfos,
+                                        Toast.LENGTH_LONG).show();
+                            });
+                        });
+                    } else {
+                        String failStack = session.getFailStackTrace();
+                        runOnUiThread(() ->
+                                Toast.makeText(this,
+                                        "Erro ao cortar vídeo: " + failStack,
+                                        Toast.LENGTH_LONG).show()
+                        );
+                    }
+                },
+                session -> { /* no-op log callback */ },
+                statistics -> {
+                    double timeMs = statistics.getTime();
+                    // Calcula a percentagem
+                    final int progress = (int) ((timeMs / (double) totalDurationMs) * 100);
+
+                    // Atualiza o progresso na UI
+                    runOnUiThread(() -> progressDialog.setProgress(progress));
+
+                }
+        );
+    }
+
+
+
+    public void convertMp4ToWebpAdaptive3(
             int initialQuality,
             int compressionLvl,
             int initialFps
-    ) throws Exception {
-        // 1) Pega metadados
+    ) {
+        // 1) Prepare crop and metadata once
+        videoDisplayedWidth = videoView.getWidth();
+        videoDisplayedHeight = videoView.getHeight();
+        Rect rect = cropOverlay.getCropRect();
+        float scaleX = (float) videoOriginalWidth / videoDisplayedWidth;
+        float scaleY = (float) videoOriginalHeight / videoDisplayedHeight;
+
+        // Probe video to get original dimensions & duration
         MediaInformationSession probe = FFprobeKit.getMediaInformation(videoFile.getAbsolutePath());
-        StreamInformation vStream = probe.getMediaInformation()
-                .getStreams()
-                .stream()
+        MediaInformation info = probe.getMediaInformation();
+        StreamInformation vStream = info.getStreams().stream()
                 .filter(s -> "video".equals(s.getType()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Stream de vídeo não encontrado"));
-        int origW = Integer.parseInt(vStream.getWidth().toString());
-        int origH = Integer.parseInt(vStream.getHeight().toString());
+        final int origW = Integer.parseInt(vStream.getWidth().toString());
+        final int origH = Integer.parseInt(vStream.getHeight().toString());
+        final long videoDurationMs = (long) Double.parseDouble(info.getDuration()) * 1000;  // milliseconds
 
         final long MAX_SIZE = 500 * 1024;   // 500 KB
-        File webpFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/output_cropped.webp");
+        final File webpFile = new File(Environment.getExternalStorageDirectory(),
+                "00-Figurinhas/temp/output_cropped.webp");
+        fileCropped = webpFile;
 
-        // parâmetros adaptativos
-        int targetW = origW;
-        int targetH = origH;
-        int quality = initialQuality;
-        int compression = compressionLvl;
-        int fps = initialFps;
-        final float SCALE_STEP = 0.9f;      // reduz 10% a cada iteração
-        final int FPS_STEP = 1;             // reduz 2 fps por iteração
-        final int MIN_FPS = 10;
+        // Dialog UI
+        final AlertDialog progressDialog;
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
+        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
+        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
+        progressBar.setMax(100);
+        attemptsTv.setText("Tentativa: 0");
 
-        while (true) {
-            // coords de crop
-            int cropX = Math.round(xOnScreen * scaleX);
-            int cropY = Math.round(yOnScreen * scaleY);
-            int cropW = Math.round(wOnScreen * scaleX);
-            int cropH = Math.round(hOnScreen * scaleY);
-            String cropFilter = String.format(Locale.US, "crop=%d:%d:%d:%d", cropW, cropH, cropX, cropY);
+        progressDialog = new AlertDialog.Builder(this)
+                .setTitle("Convertendo vídeo")
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+        progressDialog.show();
 
-            // monta filtro completo: crop, scale adaptativo, pad, fps
-            String vf = String.format(Locale.US,
-                    "%s,scale=%d:%d,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black,fps=%d",
-                    cropFilter, targetW, targetH, fps
-            );
+        // Recursive retry function
+        class Retry {
+            int quality = initialQuality;
+            int compression = compressionLvl;
+            int fps = initialFps;
+            int attempt = 0;
 
-            String cmd = String.format(Locale.US,
-                    "-y -i \"%s\" -vf \"%s\" -c:v libwebp -lossless 0 -q:v %d -compression_level %d -preset default -loop 0 -an -vsync 0 \"%s\"",
-                    videoFile.getAbsolutePath(), vf, quality, compression, webpFile.getAbsolutePath()
-            );
-
-            Session session = FFmpegKit.execute(cmd);
-            if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                throw new RuntimeException("FFmpeg falhou: " + session.getFailStackTrace());
-            }
-
-            long size = webpFile.length();
-            if (size <= MAX_SIZE) {
-
-
+            void runAttempt() {
+                attempt++;
+                // reset UI
                 runOnUiThread(() -> {
-
-                    byte[] bytes = getBytes(webpFile);
-                    final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-
-                    String infos = "Altura: " + webPImage.getHeight();
-                    infos += "\nLargura: " + webPImage.getWidth();
-                    infos += "\nQtd Frames: " + webPImage.getFrameCount();
-                    infos += "\nDuração: " + webPImage.getDuration() / 1000 + " segundos";
-                    infos += "\nTamanho: " + String.format(new Locale("pt", "BR"), "%.2f", (double) webPImage.getSizeInBytes() / 1024.0) + " KB";
-
-                    final Uri stickerAssetUri = Uri.fromFile(webpFile)
-                            .buildUpon()
-                            .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
-                            .build();
-                    DraweeController controller = Fresco.newDraweeControllerBuilder()
-                            .setUri(stickerAssetUri)
-                            .setAutoPlayAnimations(true)
-                            .build();
-
-                    expandedStickerPreview.setImageResource(R.drawable.sticker_error);
-                    expandedStickerPreview.setController(controller);
-                    videoView.seekTo(0);
-
-                    expandedStickerPreview.setVisibility(View.VISIBLE);
-                    progressBarPreview.setVisibility(View.INVISIBLE);
-
-                    videoContainer.setVisibility(View.VISIBLE);
-                    progressBarVideoView.setVisibility(View.GONE);
-
-                    String finalInfos = infos;
-                    expandedStickerPreview.setOnClickListener(view -> {
-                        Toast.makeText(this,
-                                finalInfos,
-                                Toast.LENGTH_LONG).show();
-                    });
+                    progressBar.setProgress(0);
+                    attemptsTv.setText("Tentativa: " + attempt);
                 });
 
+                // build crop filter
+                Rect r = cropOverlay.getCropRect();
+                int cropX = Math.round(r.left * scaleX);
+                int cropY = Math.round(r.top * scaleY);
+                int cropW = Math.round(r.width() * scaleX);
+                int cropH = Math.round(r.height() * scaleY);
+                String cropFilter = String.format(Locale.US,
+                        "crop=%d:%d:%d:%d", cropW, cropH, cropX, cropY);
 
+                // full video filter
+                String vf = String.format(Locale.US,
+                        "%s,scale=512:512:force_original_aspect_ratio=decrease," +
+                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black,fps=%d",
+                        cropFilter, fps);
 
+                String cmd = String.format(Locale.US,
+                        "-y -i \"%s\" -vf \"%s\" -c:v libwebp -lossless 0 " +
+                                "-q:v %d -compression_level %d -preset default -loop 0 -an -vsync 0 \"%s\"",
+                        videoFile.getAbsolutePath(), vf, quality, compression,
+                        webpFile.getAbsolutePath());
 
-                break;  // sucesso
-            }
+                // execute async to get progress callbacks
+                FFmpegKit.executeAsync(
+                        cmd,
+                        session -> {
+                            // onComplete
+                            if (!ReturnCode.isSuccess(session.getReturnCode())) {
+                                runOnUiThread(() -> {
+                                    progressDialog.dismiss();
 
-            // sem limites: sempre ajusta qualidade, resolução e fps
-            if (quality > 50) {
-                quality = Math.max(0, quality - 10);
-            }
-            if (fps > MIN_FPS) {
-                fps = Math.max(MIN_FPS, fps - FPS_STEP);
-            }
-            targetW = Math.max(1, Math.round(targetW * SCALE_STEP));
-            targetH = Math.max(1, Math.round(targetH * SCALE_STEP));
-        }
-    }
+                                    Toast.makeText(CropVideoActivity.this,
+                                            "FFmpeg falhou: " + session.getFailStackTrace(),
+                                            Toast.LENGTH_LONG).show();
+                                });
+                                return;
+                            }
+                            long size = webpFile.length();
 
-    public static void convertMp4ToWebpWithCropAndSizeLimit2(
-            Context context,
-            String inputMp4,
-            String outputWebP,
-            float xOnScreen,
-            float yOnScreen,
-            float wOnScreen,
-            float hOnScreen,
-            float scaleX,
-            float scaleY
-    ) throws Exception {
-        // 1) Obtém resolução original do MP4
-        MediaInformationSession probe = FFprobeKit.getMediaInformation(inputMp4);
-        StreamInformation videoStream = probe.getMediaInformation()
-                .getStreams()
-                .stream()
-                .filter(s -> "video".equals(s.getType()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Stream de vídeo não encontrado"));
+                            // EXTRAI E EXIBE AS INFOS DO WebP
+                            byte[] bytes = getBytes(webpFile);
+                            WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+                            String webpInfos = String.format(Locale.US,
+                                    "Altura: %d\nLargura: %d\nFrames: %d\nDuração: %.2f s\nTamanho: %.2f KB",
+                                    webPImage.getHeight(),
+                                    webPImage.getWidth(),
+                                    webPImage.getFrameCount(),
+                                    webPImage.getDuration() / 1000f,
+                                    webPImage.getSizeInBytes() / 1024f
+                            );
 
-        int origWidth = Integer.parseInt(videoStream.getWidth().toString());
-        int origHeight = Integer.parseInt(videoStream.getHeight().toString());
+                            runOnUiThread(() -> {
+                                TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
+                                infoTv.setText(webpInfos);
+                            });
 
-        // 2) Parâmetros iniciais
-        int decrement = 0;                     // quanto reduzir da resolução a cada iteração
-        final int STEP = 100;                  // decremento em px
-        final long MAX_SIZE = 500 * 1024;      // 500 KB
-
-        File webpFile = new File(outputWebP);
-
-        while (true) {
-            // 3) Cálculo das coordenadas de crop no vídeo original
-            int cropX = Math.round(xOnScreen * scaleX);
-            int cropY = Math.round(yOnScreen * scaleY);
-            int cropW = Math.round(wOnScreen * scaleX);
-            int cropH = Math.round(hOnScreen * scaleY);
-
-            String cropFilter = String.format(
-                    Locale.US,
-                    "crop=%d:%d:%d:%d",
-                    cropW, cropH, cropX, cropY
-            );
-
-            // 4) Calcula nova resolução de throughput (antes do crop)
-            int targetW = Math.max(STEP, origWidth - decrement);
-            int targetH = Math.max(STEP, origHeight - decrement);
-
-            // 5) Monta comando FFmpeg: aplica resize, crop, depois scale+pad para 512×512
-            String vf = String.format(
-                    Locale.US,
-                    "scale=%d:%d,%s,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black,fps=15",
-                    targetW, targetH, cropFilter
-            );
-
-            String ffmpegCmd = String.format(
-                    "-y -i \"%s\" -vf \"%s\" -c:v libwebp -lossless 0 -q:v 75 -preset default -loop 0 -an -vsync 0 \"%s\"",
-                    inputMp4, vf, outputWebP
-            );
-
-            // 6) Executa FFmpeg
-            Session session = FFmpegKit.execute(ffmpegCmd);
-            if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                throw new RuntimeException("FFmpeg falhou: " + session.getFailStackTrace());
-            }
-
-            // 7) Verifica tamanho do WebP
-            long size = webpFile.length();
-            if (size <= MAX_SIZE) {
-                // Conseguiu ficar abaixo de 500 KB
-                break;
-            }
-
-            // 8) Se ainda grande, aumenta decremento e tenta de novo
-            decrement += STEP;
-            if (decrement >= Math.min(origWidth, origHeight)) {
-                throw new RuntimeException(
-                        "Não foi possível reduzir abaixo de 500 KB mesmo com resolução mínima"
+                            if (size <= MAX_SIZE) {
+                                runOnUiThread(() -> {
+                                    progressDialog.dismiss();
+                                    showResult(webpFile);
+                                });
+                            } else {
+                                // adjust params for next iteration
+                                if (quality > 40) quality = Math.max(0, quality - 10);
+                                if (fps > 10) fps = Math.max(10, fps - 2);
+                                // next try
+                                runAttempt();
+                            }
+                        },
+                        log -> { /* optional: log ffmpeg output */ },
+                        statistics -> {
+                            // update progress (% of total duration)
+                            double time = statistics.getTime();
+                            final int percent = (int)(100f * time / videoDurationMs);
+                            runOnUiThread(() -> progressBar.setProgress(percent));
+                        }
                 );
             }
         }
+
+        // kick off first attempt
+        new Retry().runAttempt();
     }
 
+    // call this on success to decode WebP and update UI
+    private void showResult(File webpFile) {
+        byte[] bytes = getBytes(webpFile);
+        WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+        String infos = String.format(Locale.US,
+                "Altura: %d\nLargura: %d\nFrames: %d\nDuração: %.2f s\nTamanho: %.2f KB",
+                webPImage.getHeight(),
+                webPImage.getWidth(),
+                webPImage.getFrameCount(),
+                webPImage.getDuration()/1000f,
+                webPImage.getSizeInBytes()/1024f
+        );
+        Uri uri = Uri.fromFile(webpFile)
+                .buildUpon()
+                .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
+                .build();
+        DraweeController controller = Fresco.newDraweeControllerBuilder()
+                .setUri(uri)
+                .setAutoPlayAnimations(true)
+                .build();
+
+        expandedStickerPreview.setImageResource(R.drawable.sticker_error);
+        expandedStickerPreview.setController(controller);
+        videoView.seekTo(0);
+
+        expandedStickerPreview.setVisibility(View.VISIBLE);
+        progressBarPreview.setVisibility(View.GONE);
+        videoContainer.setVisibility(View.VISIBLE);
+        progressBarVideoView.setVisibility(View.GONE);
+
+        expandedStickerPreview.setOnClickListener(view ->
+                Toast.makeText(this, infos, Toast.LENGTH_LONG).show()
+        );
+    }
 
     private File getFileCropped() {
         File fileCropped2 = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/output_cropped.webp");
@@ -451,57 +560,6 @@ public class CropVideoActivity extends AppCompatActivity {
         }
 
         return fileCropped2;
-    }
-
-    private void FFmpegKitExecuteAsync(String ffmpegCommand) {
-        FFmpegKit.executeAsync(ffmpegCommand, session -> {
-            ReturnCode returnCode = session.getReturnCode();
-            if (ReturnCode.isSuccess(returnCode)) {
-                runOnUiThread(() -> {
-
-                    byte[] bytes = getBytes(fileCropped);
-                    final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-
-                    String infos = "Altura: " + webPImage.getHeight();
-                    infos += "\nLargura: " + webPImage.getWidth();
-                    infos += "\nQtd Frames: " + webPImage.getFrameCount();
-                    infos += "\nDuração: " + webPImage.getDuration() / 1000 + " segundos";
-                    infos += "\nTamanho: " + String.format(new Locale("pt", "BR"), "%.2f", (double) webPImage.getSizeInBytes() / 1024.0) + " KB";
-
-                    final Uri stickerAssetUri = Uri.fromFile(fileCropped)
-                            .buildUpon()
-                            .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
-                            .build();
-                    DraweeController controller = Fresco.newDraweeControllerBuilder()
-                            .setUri(stickerAssetUri)
-                            .setAutoPlayAnimations(true)
-                            .build();
-
-                    expandedStickerPreview.setImageResource(R.drawable.sticker_error);
-                    expandedStickerPreview.setController(controller);
-                    videoView.seekTo(0);
-
-                    expandedStickerPreview.setVisibility(View.VISIBLE);
-                    progressBarPreview.setVisibility(View.INVISIBLE);
-
-                    videoContainer.setVisibility(View.VISIBLE);
-                    progressBarVideoView.setVisibility(View.GONE);
-
-                    String finalInfos = infos;
-                    expandedStickerPreview.setOnClickListener(view -> {
-                        Toast.makeText(this,
-                                finalInfos,
-                                Toast.LENGTH_LONG).show();
-                    });
-                });
-            } else {
-                // Erro no ffmpeg
-                String failStack = session.getFailStackTrace();
-                runOnUiThread(() -> Toast.makeText(this,
-                        "Erro ao cortar vídeo: " + failStack,
-                        Toast.LENGTH_LONG).show());
-            }
-        });
     }
 
     private byte[] getBytes(File file) {

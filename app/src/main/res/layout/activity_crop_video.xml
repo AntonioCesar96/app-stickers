@@ -1,10 +1,13 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:argType="http://schemas.android.com/tools"
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <ScrollView
+    <com.example.samplestickerapp.LockableScrollView
+        android:id="@+id/lockableScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/bottom_buttons"
@@ -25,6 +28,7 @@
 
             <FrameLayout
                 android:id="@+id/video_container"
+                android:layout_gravity="center_horizontal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
@@ -72,7 +76,7 @@
             </FrameLayout>
 
         </LinearLayout>
-    </ScrollView>
+    </com.example.samplestickerapp.LockableScrollView>
 
     <!-- Botões fixos embaixo -->
     <LinearLayout

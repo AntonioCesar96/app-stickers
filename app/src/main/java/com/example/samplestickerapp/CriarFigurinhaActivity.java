@@ -8,9 +8,12 @@
 
 package com.example.samplestickerapp;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
+import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -22,6 +25,7 @@ import com.arthenica.ffmpegkit.ReturnCode;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.Locale;
 import java.util.Objects;
 
 import okhttp3.OkHttpClient;
@@ -35,8 +39,6 @@ import android.content.Context;
 
 
 public class CriarFigurinhaActivity extends BaseActivity {
-    public static final String EXTRA_STICKER_PACK_DATA = "sticker_pack_01";
-
     private StickerPack stickerPack;
     private EditText etVideoUrl;
     private Button btnBaixar, btnLimpar, btnColar, btnTrim, btnCrop;
@@ -53,7 +55,7 @@ public class CriarFigurinhaActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_criar_figurinha);
 
-        stickerPack = getIntent().getParcelableExtra(EXTRA_STICKER_PACK_DATA);
+        stickerPack = getIntent().getParcelableExtra("sticker_pack");
 
         etVideoUrl = findViewById(R.id.etVideoUrl);
         btnBaixar = findViewById(R.id.btnBaixar);
@@ -78,13 +80,13 @@ public class CriarFigurinhaActivity extends BaseActivity {
             getSupportActionBar().setTitle("Pastas e Figurinhas");
         }
 
+        File aaa = Environment.getExternalStorageDirectory();
+
         File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original.mp4");
         if(tempDir.exists()) {
             btnTrim.setVisibility(View.VISIBLE);
             btnCrop.setVisibility(View.VISIBLE);
         }
-
-        //limparTemp();
     }
 
     private void trimVideo() {
@@ -96,6 +98,7 @@ public class CriarFigurinhaActivity extends BaseActivity {
 
         Intent intent = new Intent(this, CustomVideoRangeActivity.class);
         intent.putExtra("sticker_pack", stickerPack);
+        intent.putExtra("file_path", tempDir.getAbsolutePath());
         startActivity(intent);
     }
 
@@ -108,6 +111,7 @@ public class CriarFigurinhaActivity extends BaseActivity {
 
         Intent intent = new Intent(this, CropVideoActivity.class);
         intent.putExtra("sticker_pack", stickerPack);
+        intent.putExtra("file_path", tempDir.getAbsolutePath());
         startActivity(intent);
     }
 
@@ -180,6 +184,7 @@ public class CriarFigurinhaActivity extends BaseActivity {
                                 Intent intent = new Intent(this, CropVideoActivity.class);
                                 intent.putExtra("sticker_pack", stickerPack);
                                 intent.putExtra("extensao_arquivo", extensaoArquivo);
+                                intent.putExtra("file_path", tempMp4File.getAbsolutePath());
                                 //startActivity(intent);
                             });
                         } else {
@@ -218,13 +223,6 @@ public class CriarFigurinhaActivity extends BaseActivity {
         etVideoUrl.setText("");
     }
 
-    private void limparTemp() {
-        File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
-        ContentsJsonHelper.deleteRecursive(tempDir);
-        if (!tempDir.exists())
-            tempDir.mkdirs();
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
@@ -232,5 +230,81 @@ public class CriarFigurinhaActivity extends BaseActivity {
         if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
             finish();
         }
+    }
+
+    // TODO: aaaaaaaaaaaaaaaaaaaaaaaa mudar dps seila
+    private void initializeWithResize() {
+        File inputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original.mp4");
+        String inputPath = inputFile.getAbsolutePath();
+
+        File outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        String outputPath = outputFile.getAbsolutePath();
+        if (outputFile.exists()) {
+            outputFile.delete();
+            outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        }
+
+        // Recupera dimensões originais
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(inputPath);
+        int width = Integer.parseInt(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+        int height = Integer.parseInt(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+        long durationMs = Long.parseLong(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+        retriever.release();
+
+        // Build scale filter if needed
+        String videoFilter = "";
+        if (width > 512) {
+            videoFilter = "-vf \"scale=512:-2,fps=20\"";
+        } else {
+            videoFilter = "-vf \"fps=20\"";
+        }
+
+        // Prepare FFmpeg command
+        String ffmpegCommand = String.format(Locale.US,
+                "-y -i \"%s\" %s -c:v libx264 -preset veryslow -b:v 500k -crf 28 -an \"%s\"",
+                inputPath, videoFilter, outputPath
+        );
+
+        // Show non-cancelable progress dialog
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Processing Video");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setIndeterminate(false);
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // Execute FFmpegKit asynchronously with progress callback
+        FFmpegKit.executeAsync(ffmpegCommand,
+                session -> {
+                    // Dismiss dialog and handle completion on UI thread
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        if (ReturnCode.isSuccess(session.getReturnCode())) {
+                            Intent intent = new Intent(this, CropVideoActivity.class);
+                            intent.putExtra("sticker_pack", stickerPack);
+                            intent.putExtra("file_path", outputPath);
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(this,
+                                    "Falha ao processar vídeo. Veja o log para detalhes.",
+                                    Toast.LENGTH_LONG).show();
+                            Log.e("FFmpegKit",
+                                    session.getAllLogsAsString());
+                        }
+                    });
+                },
+                session -> { /* no-op log callback */ },
+                statistics -> {
+                    // Update progress
+                    double timeMs = statistics.getTime();
+                    int percent = (int) ((timeMs / (float) durationMs) * 100);
+                    runOnUiThread(() -> progressDialog.setProgress(percent));
+                }
+        );
     }
 }

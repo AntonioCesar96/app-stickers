@@ -86,6 +86,19 @@ public class StickerContentProvider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
+        try {
+            File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas");
+            if (!tempDir.exists())
+                tempDir.mkdirs();
+
+            tempDir = new File(tempDir, "temp");
+            if (!tempDir.exists())
+                tempDir.mkdirs();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
         final String authority = BuildConfig.CONTENT_PROVIDER_AUTHORITY;
         if (!authority.startsWith(Objects.requireNonNull(getContext()).getPackageName())) {
             throw new IllegalStateException("your authority (" + authority + ") for the content provider should start with your package name: " + getContext().getPackageName());

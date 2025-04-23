@@ -58,7 +58,7 @@ public class EntryActivity extends BaseActivity {
         } else {
             final Intent intent = new Intent(this, StickerPackDetailsActivity.class);
             intent.putExtra(StickerPackDetailsActivity.EXTRA_SHOW_UP_BUTTON, false);
-            intent.putExtra(StickerPackDetailsActivity.EXTRA_STICKER_PACK_DATA, stickerPackList.get(0));
+            intent.putExtra("sticker_pack", stickerPackList.get(0));
             startActivity(intent);
             finish();
             overridePendingTransition(0, 0);

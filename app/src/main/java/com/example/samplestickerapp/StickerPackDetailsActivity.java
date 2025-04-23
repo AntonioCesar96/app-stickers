@@ -8,29 +8,55 @@
 
 package com.example.samplestickerapp;
 
+import android.app.ProgressDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.InputType;
 import android.text.format.Formatter;
+import android.util.Patterns;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.ReturnCode;
 import com.facebook.drawee.view.SimpleDraweeView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class StickerPackDetailsActivity extends AddStickerPackActivity {
 
@@ -47,7 +73,6 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     public static final String EXTRA_STICKER_PACK_LICENSE_AGREEMENT = "sticker_pack_license_agreement";
     public static final String EXTRA_STICKER_PACK_TRAY_ICON = "sticker_pack_tray_icon";
     public static final String EXTRA_SHOW_UP_BUTTON = "show_up_button";
-    public static final String EXTRA_STICKER_PACK_DATA = "sticker_pack";
 
 
     private RecyclerView recyclerView;
@@ -60,13 +85,14 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private View divider;
     private TextView packSizeTextView;
     private SimpleDraweeView expandedStickerView;
+    private AlertDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sticker_pack_details);
         boolean showUpButton = getIntent().getBooleanExtra(EXTRA_SHOW_UP_BUTTON, false);
-        stickerPack = getIntent().getParcelableExtra(EXTRA_STICKER_PACK_DATA);
+        stickerPack = getIntent().getParcelableExtra("sticker_pack");
         TextView packNameTextView = findViewById(R.id.pack_name);
         TextView packPublisherTextView = findViewById(R.id.author);
         ImageView packTrayIcon = findViewById(R.id.tray_image);
@@ -95,9 +121,18 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(showUpButton);
-            getSupportActionBar().setTitle(showUpButton ? getResources().getString(R.string.title_activity_sticker_pack_details_multiple_pack) : getResources().getQuantityString(R.plurals.title_activity_sticker_packs_list, 1));
+            getSupportActionBar().setTitle("Detalhes");
         }
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
+
+        limparTemp();
+    }
+
+    private void limparTemp() {
+        File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
+        ContentsJsonHelper.deleteRecursive(tempDir);
+        if (!tempDir.exists())
+            tempDir.mkdirs();
     }
 
     @Override
@@ -105,6 +140,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         super.onResume();
 
         if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+            if (dialog != null && dialog.isShowing())
+                dialog.dismiss();
 
             stickerPreviewAdapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickerAlteradoTelaCriar);
             stickerPreviewAdapter.notifyItemInserted(0);
@@ -135,12 +172,168 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_adicionar_novo && stickerPack != null) {
-            Intent intent = new Intent(this, CriarFigurinhaActivity.class);
-            intent.putExtra(CriarFigurinhaActivity.EXTRA_STICKER_PACK_DATA, stickerPack);
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Digite algo");
+
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_input, null);
+            final EditText input = dialogView.findViewById(R.id.input_url);
+            input.setText("https://media.tenor.com/QA_IqSKoWTcAAAPo/the-rock.mp4");
+
+            builder.setView(dialogView);
+
+            builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+
+            dialog = builder.create();
+            dialog.show();
+
+            Button negativeButton = dialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+            negativeButton.setTextColor(Color.RED);
+
+            ImageButton btnLimpar = dialogView.findViewById(R.id.btn_limpar);
+            ImageButton btnColar = dialogView.findViewById(R.id.btn_colar);
+            ImageButton btnBaixar = dialogView.findViewById(R.id.btn_baixar);
+
+            btnLimpar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    input.setText("");  // Limpa o conteúdo do EditText
+                }
+            });
+
+            btnColar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData clip = clipboard.getPrimaryClip();
+                    if (clip != null && clip.getItemCount() > 0) {
+                        CharSequence text = clip.getItemAt(0).getText();
+                        input.setText(text);
+                    } else {
+                        Toast.makeText(StickerPackDetailsActivity.this, "Nada copiado para colar", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
+
+            btnBaixar.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String url = input.getText().toString();
+
+                    if (url.isEmpty() || !Patterns.WEB_URL.matcher(url).matches()) {
+                        Toast.makeText(StickerPackDetailsActivity.this, "URL inválida", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    startDownload(url);
+                }
+            });
+
+            return true;
+        }
+
+        if (item.getItemId() == R.id.action_listar_diretorio && stickerPack != null) {
+            Intent intent = new Intent(this, FileExplorerActivity.class);
+            intent.putExtra("sticker_pack", stickerPack);
             startActivity(intent);
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void startDownload(String url) {
+        // Criar e configurar o ProgressDialog
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Download em progresso");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        new Thread(() -> {
+            try {
+                OkHttpClient client = new OkHttpClient();
+                Request request = new Request.Builder().url(url).build();
+                Response response = client.newCall(request).execute();
+                ResponseBody body = response.body();
+
+                if (body != null) {
+                    long contentLength = body.contentLength();
+                    String extensaoArquivo = body.contentType().subtype();
+
+                    if (extensaoArquivo.equals("plain")) {
+                        runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                            Toast.makeText(StickerPackDetailsActivity.this,
+                                    "Há algo errado com a URL\nFormato baixado: " + extensaoArquivo,
+                                    Toast.LENGTH_LONG).show();
+                        });
+                        return;
+                    }
+
+                    // Tenta extrair o nome do arquivo do header Content-Disposition
+                    String fileName = null;
+                    String disposition = response.header("Content-Disposition");
+                    if (disposition != null && disposition.contains("filename=")) {
+                        fileName = disposition.split("filename=")[1].replace("\"", "").trim();
+                    } else {
+                        // fallback para URL path
+                        Uri uri = Uri.parse(url);
+                        fileName = uri.getLastPathSegment();
+                    }
+
+                    // fallback final se tudo falhar
+                    if (fileName == null || fileName.isEmpty()) {
+                        fileName = "f_" + System.currentTimeMillis() + "." + extensaoArquivo;
+                    }
+
+                    File downloadDir = new File(Environment.getExternalStorageDirectory(), "Download");
+                    File videoOriginalFile = new File(downloadDir, fileName);
+
+                    InputStream is = body.byteStream();
+                    FileOutputStream fos = new FileOutputStream(videoOriginalFile);
+                    byte[] buffer = new byte[8192];
+                    long totalRead = 0;
+                    int read;
+                    while ((read = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, read);
+                        totalRead += read;
+                        int progress = (int) ((totalRead * 100) / contentLength);
+                        runOnUiThread(() -> progressDialog.setProgress(progress));
+                    }
+
+                    fos.flush();
+                    fos.close();
+                    is.close();
+
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+
+                        Intent intent = new Intent(StickerPackDetailsActivity.this, FileExplorerActivity.class);
+                        intent.putExtra("sticker_pack", stickerPack);
+                        intent.putExtra("abrir_download", true);
+                        startActivity(intent);
+                    });
+                } else {
+                    progressDialog.dismiss();
+                    Toast.makeText(StickerPackDetailsActivity.this,
+                            "Aconteceu algum problema",
+                            Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(StickerPackDetailsActivity.this,
+                            "Erro: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
     }
 
 

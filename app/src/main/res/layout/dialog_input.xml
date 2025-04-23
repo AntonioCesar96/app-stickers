@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <EditText
+        android:id="@+id/input_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:maxHeight="200dp"
+        android:hint="URL do gif/video"
+        android:inputType="textUri|textMultiLine" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp"
+        android:gravity="center_horizontal">
+
+        <ImageButton
+            android:id="@+id/btn_colar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_paste"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Editar"
+            android:layout_marginEnd="16dp" />
+
+        <ImageButton
+            android:id="@+id/btn_limpar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_clear"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Pausar"
+            android:layout_marginEnd="16dp" />
+
+
+        <ImageButton
+            android:id="@+id/btn_baixar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_download"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Preview"
+            android:layout_marginEnd="16dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

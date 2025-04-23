@@ -12,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.text.format.Formatter;
 import android.util.TypedValue;
@@ -25,6 +26,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.facebook.drawee.backends.pipeline.Fresco;
+import com.facebook.drawee.interfaces.DraweeController;
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.util.List;
@@ -60,15 +63,31 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         viewHolder.container.setOnClickListener(view -> {
             Intent intent = new Intent(view.getContext(), StickerPackDetailsActivity.class);
             intent.putExtra(StickerPackDetailsActivity.EXTRA_SHOW_UP_BUTTON, true);
-            intent.putExtra(StickerPackDetailsActivity.EXTRA_STICKER_PACK_DATA, pack);
+            intent.putExtra("sticker_pack", pack);
             view.getContext().startActivity(intent);
         });
         viewHolder.imageRowView.removeAllViews();
         //if this sticker pack contains less stickers than the max, then take the smaller size.
         int actualNumberOfStickersToShow = Math.min(maxNumberOfStickersInARow, pack.getStickers().size());
         for (int i = 0; i < actualNumberOfStickersToShow; i++) {
+
             final SimpleDraweeView rowImage = (SimpleDraweeView) LayoutInflater.from(context).inflate(R.layout.sticker_packs_list_image_item, viewHolder.imageRowView, false);
-            rowImage.setImageURI(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName));
+            //if (!pack.animatedStickerPack) {
+                rowImage.setImageURI(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName));
+//            } else {
+//                final Uri stickerAssetUri = StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName)
+//                        .buildUpon()
+//                        .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
+//                        .build();
+//                DraweeController controller = Fresco.newDraweeControllerBuilder()
+//                        .setUri(stickerAssetUri)
+//                        .setAutoPlayAnimations(true)
+//                        .build();
+//
+//                rowImage.setImageResource(R.drawable.sticker_error);
+//                rowImage.setController(controller);
+//            }
+
             final LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) rowImage.getLayoutParams();
             final int marginBetweenImages = minMarginBetweenImages - lp.leftMargin - lp.rightMargin;
             if (i != actualNumberOfStickersToShow - 1 && marginBetweenImages > 0) { //do not set the margin for the last image
