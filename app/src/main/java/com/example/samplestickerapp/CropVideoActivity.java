@@ -63,6 +63,7 @@ public class CropVideoActivity extends AppCompatActivity {
     private VideoView videoView, videoViewPreview;
     private SimpleDraweeView expandedStickerPreview;
     private FrameLayout videoContainer;
+    private LinearLayout bottomButtons;
     private ProgressBar progressBarPreview, progressBarVideoView;
     private CropOverlayView cropOverlay;
     private StickerPack stickerPack;
@@ -96,7 +97,12 @@ public class CropVideoActivity extends AppCompatActivity {
         btnSalvar = findViewById(R.id.btn_salvar);
         btnOpcoes = findViewById(R.id.btn_opcoes);
         videoContainer = findViewById(R.id.video_container);
+        bottomButtons = findViewById(R.id.bottom_buttons);
         expandedStickerPreview = findViewById(R.id.sticker_details_expanded_sticker_preview);
+
+        progressBarVideoView.setVisibility(View.VISIBLE);
+        videoContainer.setVisibility(View.INVISIBLE);
+        bottomButtons.setVisibility(View.INVISIBLE);
 
         btnCrop.setOnClickListener(v -> {
             progressBarPreview.setVisibility(View.VISIBLE);
@@ -128,10 +134,6 @@ public class CropVideoActivity extends AppCompatActivity {
 
             videoView.start();
         });
-
-
-        progressBarVideoView.setVisibility(View.VISIBLE);
-        videoContainer.setVisibility(View.INVISIBLE);
 
         videoView.getViewTreeObserver().addOnPreDrawListener(
                 new ViewTreeObserver.OnPreDrawListener() {
@@ -401,6 +403,7 @@ public class CropVideoActivity extends AppCompatActivity {
         progressBarPreview.setVisibility(View.GONE);
         videoContainer.setVisibility(View.VISIBLE);
         progressBarVideoView.setVisibility(View.GONE);
+        bottomButtons.setVisibility(View.VISIBLE);
 
         expandedStickerPreview.setOnClickListener(view ->
                 Toast.makeText(this, infos, Toast.LENGTH_LONG).show()

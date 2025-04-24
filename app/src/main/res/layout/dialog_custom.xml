@@ -26,7 +26,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Frame Rate por Segundo (FPS) (30 quadros por segundo! Se o vídeo tiver 5 segundos, são 150 quadros WebP)" />
+            android:text="Frame Rate por Segundo (FPS)" />
 
         <EditText
             android:id="@+id/input_velocidade_fps"
@@ -53,7 +53,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Qualidade (deixe entre 15 e 40) (CRF baixo = qualidade alta = arquivo maior) (15 qualidade muito alta, quase sem perda)" />
+            android:text="Qualidade" />
 
         <EditText
             android:id="@+id/input_quality"
