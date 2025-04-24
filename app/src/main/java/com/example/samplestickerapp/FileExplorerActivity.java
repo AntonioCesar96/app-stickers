@@ -285,7 +285,7 @@ public class FileExplorerActivity extends AppCompatActivity {
                     tempMp4File = new File(tempDir, "video_original_gif.mp4");
                 }
 
-                String ffmpegCommand = "-i " + inputPath
+                String ffmpegCommand = "-i \"" + inputPath + "\""
                         + " -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\""
                         + " -c:v libx264 -crf 23 -preset fast -pix_fmt yuv420p -movflags +faststart -an "
                         + tempMp4File.getAbsolutePath();
