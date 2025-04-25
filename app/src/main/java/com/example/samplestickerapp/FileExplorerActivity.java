@@ -214,7 +214,7 @@ public class FileExplorerActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+        if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
             finish();
         }
     }

@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    
+    <!-- Quadrante superior esquerdo -->
+    <path
+        android:fillColor="#6A5ACD"
+        android:pathData="M3,3h8v8H3z" />
+    
+    <!-- Quadrante superior direito -->
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M13,3h8v8h-8z" />
+    
+    <!-- Quadrante inferior esquerdo -->
+    <path
+        android:fillColor="#A0522D"
+        android:pathData="M3,13h8v8H3z" />
+    
+    <!-- Quadrante inferior direito -->
+    <path
+        android:fillColor="#D2691E"
+        android:pathData="M13,13h8v8h-8z" />
+    
+    <!-- Núcleo central (círculo unificador) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M10,10a2,2 0 0 1 4,0a2,2 0 0 1 -4,0" />
+</vector>

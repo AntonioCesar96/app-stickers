@@ -7,10 +7,12 @@
 
     <ProgressBar
         android:id="@+id/progress_bar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:indeterminate="false"/>
+        android:layout_gravity="center"
+        android:indeterminate="true"/>
+
 
     <TextView
         android:id="@+id/attempts_tv"
@@ -24,7 +26,7 @@
     <TextView
         android:id="@+id/webp_info_tv"
         android:layout_marginTop="12dp"
-        android:text="Info do WebP aparecerá aqui"
+        android:text=""
         android:textSize="14sp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>

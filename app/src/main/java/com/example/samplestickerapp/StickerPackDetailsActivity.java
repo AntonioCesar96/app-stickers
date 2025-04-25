@@ -139,16 +139,18 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     protected void onResume() {
         super.onResume();
 
-        if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+        if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
             if (dialog != null && dialog.isShowing())
                 dialog.dismiss();
 
-            stickerPreviewAdapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickerAlteradoTelaCriar);
-            stickerPreviewAdapter.notifyItemInserted(0);
-            stickerPreviewAdapter.notifyItemRangeChanged(0, stickerPreviewAdapter.stickerPack.getStickers().size());
+            for (int i = 0; i < ContentsJsonHelper.stickersAlterados.size(); i++) {
+                stickerPreviewAdapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(0));
+                stickerPreviewAdapter.notifyItemInserted(0);
+                stickerPreviewAdapter.notifyItemRangeChanged(0, stickerPreviewAdapter.stickerPack.getStickers().size());
+            }
 
             ContentsJsonHelper.stickerPackAlterado = stickerPreviewAdapter.stickerPack;
-            ContentsJsonHelper.stickerAlteradoTelaCriar = null;
+            ContentsJsonHelper.stickersAlterados = new ArrayList<>();
         }
     }
 

@@ -21,7 +21,7 @@ import java.util.Objects;
 public class ContentsJsonHelper {
 
     public static StickerPack stickerPackAlterado;
-    public static Sticker stickerAlteradoTelaCriar;
+    public static ArrayList<Sticker> stickersAlterados = new ArrayList<>();
 
     public static ArrayList<StickerPackModel> getStickerPacks() {
         File assetsDir = getAssetsDir();

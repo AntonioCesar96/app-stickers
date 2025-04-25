@@ -57,7 +57,6 @@
                 android:value="com.example.samplestickerapp.StickerPackDetailsActivity" />
         </activity>
 
-        <activity android:name=".CriarFigurinhaActivity" />
         <activity android:name=".CustomVideoRangeActivity">
 <!--            <intent-filter>-->
 <!--                <action android:name="android.intent.action.MAIN" />-->

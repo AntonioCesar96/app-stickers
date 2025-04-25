@@ -16,7 +16,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
-import android.widget.ArrayAdapter;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,7 +29,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
@@ -40,6 +38,7 @@ import com.arthenica.ffmpegkit.FFprobeKit;
 import com.arthenica.ffmpegkit.MediaInformation;
 import com.arthenica.ffmpegkit.MediaInformationSession;
 import com.arthenica.ffmpegkit.ReturnCode;
+import com.arthenica.ffmpegkit.Session;
 import com.arthenica.ffmpegkit.StreamInformation;
 import com.facebook.animated.webp.WebPImage;
 import com.facebook.drawee.backends.pipeline.Fresco;
@@ -54,25 +53,33 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 public class CropVideoActivity extends AppCompatActivity {
     private LockableScrollView lockableScrollView;
-    private VideoView videoView, videoViewPreview;
+    private VideoView videoView;
     private SimpleDraweeView expandedStickerPreview;
     private FrameLayout videoContainer;
     private LinearLayout bottomButtons;
-    private ProgressBar progressBarPreview, progressBarVideoView;
+    private ProgressBar progressBarVideoView;
     private CropOverlayView cropOverlay;
     private StickerPack stickerPack;
     private String extensaoArquivoOriginal;
     private int videoOriginalWidth, videoOriginalHeight;
     File videoFile, fileCropped;
-    ImageButton btnPause, btnSalvar, btnCrop, btnOpcoes;
+    ImageButton btnPause, btnSalvar, btnCrop, btnExodia, btnOpcoes;
     EditText inputVelocidade, inputVelocidadeFps, inputCompressao, inputQuality, inputDuracao;
     String velocidade = "1", velocidadeFps = "30", compression = "6", quality = "75", duracao = "0";
+    AlertDialog progressDialog;
+    FrameLayout stickerContainerNaoExodia;
+    LinearLayout stickerContainerExodia;
+    boolean exodia = false;
+    List<ControleSticker> controleStickers = new ArrayList<>();
+    HashMap<String, String> mapInfos = new HashMap<String, String>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,27 +95,29 @@ public class CropVideoActivity extends AppCompatActivity {
         videoView.setZOrderMediaOverlay(true);
 
         lockableScrollView = findViewById(R.id.lockableScrollView);
-        videoViewPreview = findViewById(R.id.video_view_preview);
-        progressBarPreview = findViewById(R.id.sticker_loader_preview);
         progressBarVideoView = findViewById(R.id.sticker_loader_video_view);
         cropOverlay = findViewById(R.id.crop_overlay);
         btnCrop = findViewById(R.id.btn_crop);
+        btnExodia = findViewById(R.id.btn_exodia);
         btnPause = findViewById(R.id.btn_pause);
         btnSalvar = findViewById(R.id.btn_salvar);
         btnOpcoes = findViewById(R.id.btn_opcoes);
         videoContainer = findViewById(R.id.video_container);
         bottomButtons = findViewById(R.id.bottom_buttons);
-        expandedStickerPreview = findViewById(R.id.sticker_details_expanded_sticker_preview);
+        stickerContainerNaoExodia = findViewById(R.id.stickerContainerNaoExodia);
+        stickerContainerExodia = findViewById(R.id.stickerContainerExodia);
 
         progressBarVideoView.setVisibility(View.VISIBLE);
         videoContainer.setVisibility(View.INVISIBLE);
         bottomButtons.setVisibility(View.INVISIBLE);
 
         btnCrop.setOnClickListener(v -> {
-            progressBarPreview.setVisibility(View.VISIBLE);
-
-            convertMp4ToWebpAdaptive();
-
+            exodia = false;
+            convertMp4ToWebpAdaptive(false);
+        });
+        btnExodia.setOnClickListener(v -> {
+            exodia = true;
+            convertMp4ToWebpAdaptive(true);
         });
         btnOpcoes.setOnClickListener(v -> openDialogOpcoesVideo());
         btnSalvar.setOnClickListener(v -> enviarWhatsapp());
@@ -190,7 +199,8 @@ public class CropVideoActivity extends AppCompatActivity {
 
         // inicia conversão (exemplo)
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            convertMp4ToWebpAdaptive();
+            exodia = true;
+            convertMp4ToWebpAdaptive(true);
         }, 100);
     }
 
@@ -199,17 +209,22 @@ public class CropVideoActivity extends AppCompatActivity {
         super.onResume();
 
         videoView.start();
-        videoViewPreview.start();
         btnPause.setImageResource(R.drawable.ic_pause);
     }
 
-    public void convertMp4ToWebpAdaptive() {
+    public void convertMp4ToWebpAdaptive(boolean exodia) {
+        findViewById(R.id.output_exodia_0_webp_l).setVisibility(View.VISIBLE);
+        findViewById(R.id.output_exodia_1_webp_l).setVisibility(View.VISIBLE);
+        findViewById(R.id.output_exodia_2_webp_l).setVisibility(View.VISIBLE);
+        findViewById(R.id.output_exodia_3_webp_l).setVisibility(View.VISIBLE);
+
+        controleStickers = new ArrayList<>();
+
         int initialQuality = Integer.parseInt(quality);
         int compressionLvl = Integer.parseInt(compression);
         int initialFps = Integer.parseInt(velocidadeFps);
 
         // Probe video to get original dimensions & duration
-        // 1) Probe
         MediaInformationSession probe = FFprobeKit.getMediaInformation(videoFile.getAbsolutePath());
         MediaInformation info = probe.getMediaInformation();
         StreamInformation vStream = info.getStreams().stream()
@@ -219,29 +234,12 @@ public class CropVideoActivity extends AppCompatActivity {
         final int origW = Integer.parseInt(vStream.getWidth().toString());
         final int origH = Integer.parseInt(vStream.getHeight().toString());
         final int origSquare = Math.max(origW, origH);
-        final long videoDurationMs = (long) Double.parseDouble(info.getDuration()) * 1000;  // milliseconds
+        final long videoDurationMs = (long) (Double.parseDouble(info.getDuration()) * 1000);
 
-        final long MAX_SIZE = 500 * 1024;   // 500 KB
-        final File webpFile = new File(Environment.getExternalStorageDirectory(),
-                "00-Figurinhas/temp/output_cropped.webp");
-        fileCropped = webpFile;
-
-        // Dialog UI
-        final AlertDialog progressDialog;
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
-        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
-        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
-        progressBar.setMax(100);
-        attemptsTv.setText("Tentativa: 0");
-
-        progressDialog = new AlertDialog.Builder(this)
-                .setTitle("Convertendo vídeo")
-                .setView(dialogView)
-                .setCancelable(false)
-                .create();
+        final long MAX_SIZE = 500 * 1024;
+        progressDialog = createProgressDialog();
         progressDialog.show();
 
-        // Recursive retry function
         class Retry {
             int quality = initialQuality;
             int compression = compressionLvl;
@@ -252,141 +250,224 @@ public class CropVideoActivity extends AppCompatActivity {
             int sizeAnteriorTentativas = 0;
 
             void runAttempt() {
+                progressDialog.show();
                 attempt++;
-                // reset UI
-                runOnUiThread(() -> {
-                    progressBar.setProgress(0);
-                    attemptsTv.setText("Tentativa: " + attempt);
-                });
-
-                // build crop filter
-                // 2) mapeia crop do usuário
                 Rect r = cropOverlay.getCropRect();
                 int containerSide = getResources().getDisplayMetrics().widthPixels;
                 float mapFactor = (float) origSquare / containerSide;
-                int cropX = Math.round(r.left * mapFactor);
-                int cropY = Math.round(r.top * mapFactor);
-                int cropW = Math.round(r.width() * mapFactor);
-                int cropH = Math.round(r.height() * mapFactor);
+                int baseCropX = Math.round(r.left * mapFactor);
+                int baseCropY = Math.round(r.top * mapFactor);
+                int baseCropW = Math.round(r.width() * mapFactor);
+                int baseCropH = Math.round(r.height() * mapFactor);
 
-                // full video filter
+                if (!exodia) {
+                    File out = new File(Environment.getExternalStorageDirectory(),
+                            "00-Figurinhas/temp/output_cropped.webp");
+                    resetProgressUI(out.getName(), attempt);
+                    processQuadrant(baseCropX, baseCropY, baseCropW, baseCropH, out, this);
+                } else {
+                    int halfW = baseCropW / 2;
+                    int halfH = baseCropH / 2;
+                    for (int i = 0; i < 4; i++) {
+                        int offsetX = baseCropX + (i % 2) * halfW;
+                        int offsetY = baseCropY + (i / 2) * halfH;
+                        File out = new File(Environment.getExternalStorageDirectory(),
+                                String.format("00-Figurinhas/temp/output_exodia_%d.webp", i));
+                        resetProgressUI(out.getName(), attempt);
+                        processQuadrant(offsetX, offsetY, halfW, halfH, out, this);
+                    }
+                }
+            }
+
+            void processQuadrant(int cropX, int cropY, int cropW, int cropH,
+                                 File webpFile, Retry ctx) {
+
+
                 String vfFilter = String.format(Locale.US,
-                        "format=rgba,pad=%d:%d:(%d-iw)/2:(%d-ih)/2:color=#00000000," +  // pad com transparência :contentReference[oaicite:0]{index=0}
-                                "crop=%d:%d:%d:%d," +                                // crop exato
+                        "format=rgba,pad=%d:%d:(%d-iw)/2:(%d-ih)/2:color=#00000000," +
+                                "crop=%d:%d:%d:%d," +
                                 "scale=512:512:force_original_aspect_ratio=decrease," +
-                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000," + // pad final com transparência :contentReference[oaicite:2]{index=2}
-                                (velocity == 0 ? "" : ("setpts=" + (1 / Double.parseDouble(velocidade)) + "*PTS,")) +
+                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000," +
+                                (velocity == 0 ? "" : ("setpts=" + (1 / velocity) + "*PTS,")) +
                                 "fps=%d",
                         origSquare, origSquare, origSquare, origSquare,
                         cropW, cropH, cropX, cropY,
                         fps
                 );
-
                 String cmd = String.format(Locale.US,
                         "-y -i \"%s\" -vf \"%s\" -c:v libwebp_anim -lossless 0 " +
                                 "-q:v %d -compression_level %d -preset default -loop 0 -an -vsync 0 \"%s\"",
-                        videoFile.getAbsolutePath(), vfFilter, quality, compression,
+                        videoFile.getAbsolutePath(), vfFilter, ctx.quality, ctx.compression,
                         webpFile.getAbsolutePath());
 
-                // execute async to get progress callbacks
-                FFmpegKit.executeAsync(
-                        cmd,
+                FFmpegKit.executeAsync(cmd,
                         session -> {
-                            // onComplete
-                            if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                                runOnUiThread(() -> {
-                                    progressDialog.dismiss();
-
-                                    Toast.makeText(CropVideoActivity.this,
-                                            "FFmpeg falhou: " + session.getFailStackTrace(),
-                                            Toast.LENGTH_LONG).show();
-                                });
-                                return;
-                            }
-                            long size = webpFile.length();
-
-                            // EXTRAI E EXIBE AS INFOS DO WebP
-                            byte[] bytes = getBytes(webpFile);
-                            WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-                            String webpInfos = String.format(Locale.US,
-                                    "Altura: %d\nLargura: %d\nFrames: %d\nDuração: %.2f s\nTamanho: %.2f KB",
-                                    webPImage.getHeight(),
-                                    webPImage.getWidth(),
-                                    webPImage.getFrameCount(),
-                                    webPImage.getDuration() / 1000f,
-                                    webPImage.getSizeInBytes() / 1024f
-                            );
-
                             runOnUiThread(() -> {
-                                TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
-                                infoTv.setText(webpInfos);
+                                onComplete(session, webpFile, ctx);
                             });
-
-                            if (sizeAnterior == 0)
-                                sizeAnterior = size;
-                            else if (sizeAnterior != size)
-                                sizeAnterior = size;
-                            else {
-                                if (sizeAnteriorTentativas > 2) {
-                                    runOnUiThread(() -> {
-                                        Toast.makeText(CropVideoActivity.this,
-                                                "Processo não consegue reduzir o tamanho da figurinha para igual ou menos de 500kb, ajuste os parametros e tente novamente",
-                                                Toast.LENGTH_SHORT).show();
-
-                                        progressDialog.dismiss();
-                                        showResult(webpFile);
-                                    });
-                                    return;
-                                }
-                                sizeAnteriorTentativas++;
-                            }
-
-                            if (size <= MAX_SIZE) {
-                                runOnUiThread(() -> {
-                                    progressDialog.dismiss();
-                                    showResult(webpFile);
-                                });
-                            } else {
-                                // adjust params for next iteration
-                                if (quality > 40) quality = Math.max(0, quality - 10);
-
-                                if (fps > 15)
-                                    fps = Math.max(15, fps - 2);
-                                else if (fps > 1)
-                                    fps = fps - 1;
-
-                                // next try
-                                runAttempt();
-                            }
                         },
-                        log -> { /* optional: log ffmpeg output */ },
-                        statistics -> {
-                            // update progress (% of total duration)
-                            double time = statistics.getTime();
-                            final int percent = (int) (100f * time / videoDurationMs);
-                            runOnUiThread(() -> progressBar.setProgress(percent));
-                        }
+                        log -> {
+                        },
+                        statistics -> updateProgress(webpFile.getName(), attempt)
                 );
+            }
+
+            void onComplete(Session session, File webpFile, Retry ctx) {
+                if (!ReturnCode.isSuccess(session.getReturnCode())) {
+                    showError(session);
+                    return;
+                }
+                String webpInfos = "";
+                try {
+                    // EXTRAI E EXIBE AS INFOS DO WebP
+                    byte[] bytes = getBytes(webpFile);
+                    WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+                    webpInfos = String.format(Locale.US,
+                            "%dfps, %.2fs, %.2fKB, tentativa: %d",
+                            webPImage.getFrameCount(),
+                            webPImage.getDuration() / 1000f,
+                            webPImage.getSizeInBytes() / 1024f,
+                            ctx.attempt
+                    );
+
+                    mapInfos.put(webpFile.getName(), webpInfos);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                String finalWebpInfos = webpInfos;
+                runOnUiThread(() -> {
+                    TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
+                    String infos = "";
+                    for (Map.Entry<String, String> entry : mapInfos.entrySet()) {
+                        infos += entry.getKey() + " = " + entry.getValue() + "\n";
+                    }
+                    infoTv.setText(infos);
+                });
+
+                long size = webpFile.length();
+                if (ctx.sizeAnterior == 0) ctx.sizeAnterior = size;
+                else if (ctx.sizeAnterior != size) ctx.sizeAnterior = size;
+                else {
+                    if (ctx.sizeAnteriorTentativas > 3) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(CropVideoActivity.this,
+                                    "Não foi possível reduzir abaixo de 500KB, ajuste e tente novamente", Toast.LENGTH_SHORT).show();
+                            showResult(webpFile, finalWebpInfos);
+                        });
+                        return;
+                    }
+                    ctx.sizeAnteriorTentativas++;
+                }
+                if (size <= MAX_SIZE) {
+                    runOnUiThread(() -> {
+                        showResult(webpFile, finalWebpInfos);
+                    });
+                } else {
+                    if (ctx.quality > 40) ctx.quality = Math.max(0, ctx.quality - 10);
+                    if (ctx.fps > 15) ctx.fps = Math.max(15, ctx.fps - 2);
+                    else if (ctx.fps > 1) ctx.fps--;
+                    ctx.runAttempt();
+                }
             }
         }
 
-        // kick off first attempt
         new Retry().runAttempt();
     }
 
-    // call this on success to decode WebP and update UI
-    private void showResult(File webpFile) {
-        byte[] bytes = getBytes(webpFile);
-        WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-        String infos = String.format(Locale.US,
-                "Altura: %d\nLargura: %d\nFrames: %d\nDuração: %.2f s\nTamanho: %.2f KB",
-                webPImage.getHeight(),
-                webPImage.getWidth(),
-                webPImage.getFrameCount(),
-                webPImage.getDuration() / 1000f,
-                webPImage.getSizeInBytes() / 1024f
-        );
-        Uri uri = Uri.fromFile(webpFile)
+    private AlertDialog createProgressDialog() {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
+        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
+        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
+        progressBar.setMax(100);
+        attemptsTv.setText("Tentativa: 0");
+        return new AlertDialog.Builder(this)
+                .setTitle("Convertendo vídeo")
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+    }
+
+    private void resetProgressUI(String nomeArquivo, int attempt) {
+        runOnUiThread(() -> {
+            ProgressBar pb = progressDialog.findViewById(R.id.progress_bar);
+            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
+            pb.setProgress(0);
+            //tv.setText("Arquivo:" + nomeArquivo + "\nTentativa: " + attempt);
+        });
+    }
+
+    private void updateProgress(String nomeArquivo, int attempt) {
+        runOnUiThread(() -> {
+            //((TextView) progressDialog.findViewById(R.id.attempts_tv)).setText("Arquivo:" + nomeArquivo + "\nTentativa: " + attempt);
+        });
+    }
+
+    private void showError(Session session) {
+        runOnUiThread(() -> {
+            progressDialog.dismiss();
+            Toast.makeText(this, "FFmpeg falhou: " + session.getFailStackTrace(), Toast.LENGTH_LONG).show();
+        });
+    }
+
+    private void showResult(File webpFile, String webpInfos) {
+        stickerContainerExodia.setVisibility(exodia ? View.VISIBLE : View.GONE);
+        stickerContainerNaoExodia.setVisibility(exodia ? View.GONE : View.VISIBLE);
+
+        ControleSticker controleSticker = new ControleSticker();
+        controleSticker.nomeArquivo = webpFile.getName();
+        controleSticker.gerouCerto = true;
+        controleSticker.webpInfos = webpInfos;
+        controleStickers.add(controleSticker);
+
+        if (!exodia) {
+            SimpleDraweeView simpleDraweeView = findViewById(R.id.output_cropped_webp_s);
+            ProgressBar progressBar = findViewById(R.id.output_cropped_webp_l);
+
+            setupController(simpleDraweeView, new File(Environment.getExternalStorageDirectory(),
+                    "00-Figurinhas/temp/output_cropped.webp"));
+
+            simpleDraweeView.setOnClickListener(view2 ->
+                    Toast.makeText(this, webpInfos, Toast.LENGTH_SHORT).show()
+            );
+
+            simpleDraweeView.setVisibility(View.VISIBLE);
+            progressBar.setVisibility(View.GONE);
+        } else {
+            for (int i = 0; i < controleStickers.size(); i++) {
+                final ControleSticker cs = controleStickers.get(i);
+                String nomeId = cs.nomeArquivo.replace(".", "_");
+                int simpleDraweeViewId = getResources().getIdentifier(nomeId + "_s", "id", getPackageName());
+                int progressBarId = getResources().getIdentifier(nomeId + "_l", "id", getPackageName());
+                SimpleDraweeView simpleDraweeView = findViewById(simpleDraweeViewId);
+                ProgressBar progressBar = findViewById(progressBarId);
+
+                setupController(simpleDraweeView, new File(Environment.getExternalStorageDirectory(),
+                        "00-Figurinhas/temp/" + cs.nomeArquivo));
+
+                simpleDraweeView.setOnClickListener(view2 ->
+                        Toast.makeText(this, cs.webpInfos, Toast.LENGTH_SHORT).show()
+                );
+
+                simpleDraweeView.setVisibility(View.VISIBLE);
+                progressBar.setVisibility(View.GONE);
+            }
+        }
+
+        videoContainer.setVisibility(View.VISIBLE);
+        progressBarVideoView.setVisibility(View.GONE);
+        bottomButtons.setVisibility(View.VISIBLE);
+
+        if ((exodia && controleStickers.size() == 4) || (!exodia && controleStickers.size() == 1)) {
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+            });
+        }
+    }
+
+    // helper para atribuir Uri e animações
+    private void setupController(SimpleDraweeView view, File file) {
+        Uri uri = Uri.fromFile(file)
                 .buildUpon()
                 .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
                 .build();
@@ -394,30 +475,7 @@ public class CropVideoActivity extends AppCompatActivity {
                 .setUri(uri)
                 .setAutoPlayAnimations(true)
                 .build();
-
-        expandedStickerPreview.setImageResource(R.drawable.sticker_error);
-        expandedStickerPreview.setController(controller);
-        videoView.seekTo(0);
-
-        expandedStickerPreview.setVisibility(View.VISIBLE);
-        progressBarPreview.setVisibility(View.GONE);
-        videoContainer.setVisibility(View.VISIBLE);
-        progressBarVideoView.setVisibility(View.GONE);
-        bottomButtons.setVisibility(View.VISIBLE);
-
-        expandedStickerPreview.setOnClickListener(view ->
-                Toast.makeText(this, infos, Toast.LENGTH_LONG).show()
-        );
-    }
-
-    private File getFileCropped() {
-        File fileCropped2 = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/output_cropped.webp");
-        if (fileCropped2.exists()) {
-            fileCropped2.delete();
-            fileCropped2 = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/output_cropped.webp");
-        }
-
-        return fileCropped2;
+        view.setController(controller);
     }
 
     private byte[] getBytes(File file) {
@@ -517,66 +575,91 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private void enviarWhatsapp() {
-        if (fileCropped == null) {
-            Toast.makeText(this, "Figurinha não existe", Toast.LENGTH_SHORT).show();
-            return;
+        // Cria lista de arquivos temporários (1 ou 4) para envio
+        List<File> tempFiles = new ArrayList<>();
+        File baseDir = Environment.getExternalStorageDirectory();
+        String tempPath = baseDir + "/00-Figurinhas/temp/";
+        if (!exodia) {
+            tempFiles.add(new File(tempPath + "output_cropped.webp"));
+        } else {
+            for (int i = 0; i < 4; i++) {
+                tempFiles.add(new File(tempPath + String.format("output_exodia_%d.webp", i)));
+            }
         }
 
-        byte[] bytes = getBytes(fileCropped);
-        final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-        if (bytes.length > ANIMATED_STICKER_FILE_LIMIT_KB * KB_IN_BYTES) {
-            Toast.makeText(this, "figurinhas animadas tem que ter tamanho menor q "
-                    + ANIMATED_STICKER_FILE_LIMIT_KB + "KB, tamanho atual "
-                    + String.format(new Locale("pt", "BR"), "%.2f", (double) bytes.length / KB_IN_BYTES) + " KB", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (webPImage.getHeight() != IMAGE_HEIGHT) {
-            Toast.makeText(this, "a figurinha deve ter " + IMAGE_HEIGHT + " de altura,  altura atual " + webPImage.getHeight(), Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (webPImage.getWidth() != IMAGE_WIDTH) {
-            Toast.makeText(this, "a figurinha deve ter " + IMAGE_WIDTH + "de largura, largura atual " + webPImage.getWidth(), Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (webPImage.getFrameCount() <= 1) {
-            Toast.makeText(this, "a figurinha deve conter pelo menos 2 frame ", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        for (int frameDuration : webPImage.getFrameDurations()) {
-            if (frameDuration < ANIMATED_STICKER_FRAME_DURATION_MIN) {
-                Toast.makeText(this, "animated sticker frame duration limit is " + ANIMATED_STICKER_FRAME_DURATION_MIN, Toast.LENGTH_SHORT).show();
+        for (int i = 0; i < 4; i++) {
+            if (!tempFiles.get(i).exists()) {
+                Toast.makeText(this, "Uma figurinha não existe", Toast.LENGTH_SHORT).show();
                 return;
             }
         }
-        if (webPImage.getDuration() > ANIMATED_STICKER_TOTAL_DURATION_MAX) {
-            Toast.makeText(this, "a figurinha deve ter duração máxima de: " + ANIMATED_STICKER_TOTAL_DURATION_MAX + " ms, duração atual: " + webPImage.getDuration() + " ms", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
-        File rootDir = Environment.getExternalStorageDirectory();
-        File outputFileInAssets = new File(rootDir, "00-Figurinhas/assets/" + stickerPack.identifier + "/"
-                + getNextStickerPrefix() + "_" + System.currentTimeMillis() + ".webp");
+        ArrayList<Sticker> stickers = new ArrayList<>();
+        boolean naoDeuErro = true;
+        for (int i = 0; i < 4; i++) {
+            File fileTemp = tempFiles.get(i);
 
-        try {
-            FileInputStream fis = new FileInputStream(fileCropped);
-            FileOutputStream fos = new FileOutputStream(outputFileInAssets);
-
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = fis.read(buffer)) > 0) {
-                fos.write(buffer, 0, length);
+            byte[] bytes = getBytes(fileTemp);
+            final WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+            if (bytes.length > ANIMATED_STICKER_FILE_LIMIT_KB * KB_IN_BYTES) {
+                Toast.makeText(this, "figurinhas animadas tem que ter tamanho menor q "
+                        + ANIMATED_STICKER_FILE_LIMIT_KB + "KB, tamanho atual "
+                        + String.format(new Locale("pt", "BR"), "%.2f", (double) bytes.length / KB_IN_BYTES) + " KB", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (webPImage.getHeight() != IMAGE_HEIGHT) {
+                Toast.makeText(this, "a figurinha deve ter " + IMAGE_HEIGHT + " de altura,  altura atual " + webPImage.getHeight(), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (webPImage.getWidth() != IMAGE_WIDTH) {
+                Toast.makeText(this, "a figurinha deve ter " + IMAGE_WIDTH + "de largura, largura atual " + webPImage.getWidth(), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (webPImage.getFrameCount() <= 1) {
+                Toast.makeText(this, "a figurinha deve conter pelo menos 2 frame ", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            for (int frameDuration : webPImage.getFrameDurations()) {
+                if (frameDuration < ANIMATED_STICKER_FRAME_DURATION_MIN) {
+                    Toast.makeText(this, "animated sticker frame duration limit is " + ANIMATED_STICKER_FRAME_DURATION_MIN, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+            if (webPImage.getDuration() > ANIMATED_STICKER_TOTAL_DURATION_MAX) {
+                Toast.makeText(this, "a figurinha deve ter duração máxima de: " + ANIMATED_STICKER_TOTAL_DURATION_MAX + " ms, duração atual: " + webPImage.getDuration() + " ms", Toast.LENGTH_SHORT).show();
+                return;
             }
 
-            fis.close();
-            fos.close();
+            File rootDir = Environment.getExternalStorageDirectory();
+            File outputFileInAssets = new File(rootDir, "00-Figurinhas/assets/" + stickerPack.identifier + "/"
+                    + getNextStickerPrefix() + "_" + System.currentTimeMillis() + ".webp");
 
+            try {
+                FileInputStream fis = new FileInputStream(fileTemp);
+                FileOutputStream fos = new FileOutputStream(outputFileInAssets);
+
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = fis.read(buffer)) > 0) {
+                    fos.write(buffer, 0, length);
+                }
+
+                fis.close();
+                fos.close();
+
+                stickers.add(new Sticker(outputFileInAssets.getName(), Arrays.asList("😂", "🎉"), ""));
+            } catch (Exception e) {
+                naoDeuErro = false;
+                e.printStackTrace();
+                Toast.makeText(this, e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        if (naoDeuErro) {
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-            ContentsJsonHelper.stickerAlteradoTelaCriar = new Sticker(outputFileInAssets.getName(), Arrays.asList("😂", "🎉"), "");
+            ContentsJsonHelper.stickersAlterados = stickers;
 
             finish();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }

@@ -197,7 +197,7 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        if (ContentsJsonHelper.stickerAlteradoTelaCriar != null) {
+        if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
             finish();
             return;
         }

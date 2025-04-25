@@ -27,10 +27,10 @@
 
             <FrameLayout
                 android:id="@+id/video_container"
-                android:layout_gravity="center_horizontal"
-                android:background="@drawable/checkerboard"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/checkerboard">
 
                 <VideoView
                     android:id="@+id/video_view"
@@ -46,21 +46,15 @@
 
             <!-- preview e loader… -->
             <FrameLayout
-                android:id="@+id/aaaaaaaaaaaa"
+                android:id="@+id/stickerContainerNaoExodia"
+                android:visibility="gone"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="8dp">
-
-                <VideoView
-                    android:visibility="gone"
-                    android:id="@+id/video_view_preview"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_width="128dp"
-                    android:layout_height="128dp" />
+                android:layout_marginTop="10dp">
 
                 <com.facebook.drawee.view.SimpleDraweeView
-                    android:id="@+id/sticker_details_expanded_sticker_preview"
+                    android:id="@+id/output_cropped_webp_s"
                     android:layout_width="128dp"
                     android:layout_height="128dp"
                     android:layout_gravity="center_horizontal"
@@ -68,13 +62,128 @@
                     android:visibility="invisible" />
 
                 <ProgressBar
-                    android:id="@+id/sticker_loader_preview"
+                    android:id="@+id/output_cropped_webp_l"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:visibility="invisible" />
+                    android:visibility="visible" />
 
             </FrameLayout>
+
+
+            <LinearLayout
+                android:id="@+id/stickerContainerExodia"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="horizontal">
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="10dp"
+                        android:layout_gravity="center_horizontal">
+
+                        <com.facebook.drawee.view.SimpleDraweeView
+                            android:id="@+id/output_exodia_0_webp_s"
+                            android:layout_width="128dp"
+                            android:layout_height="128dp"
+                            android:layout_gravity="center_horizontal"
+                            android:scaleType="centerCrop"
+                            android:visibility="invisible" />
+
+                        <ProgressBar
+                            android:id="@+id/output_exodia_0_webp_l"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:visibility="visible" />
+
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal">
+
+                        <com.facebook.drawee.view.SimpleDraweeView
+                            android:id="@+id/output_exodia_1_webp_s"
+                            android:layout_width="128dp"
+                            android:layout_height="128dp"
+                            android:layout_gravity="center_horizontal"
+                            android:scaleType="centerCrop"
+                            android:visibility="invisible" />
+
+                        <ProgressBar
+                            android:id="@+id/output_exodia_1_webp_l"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:visibility="visible" />
+
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_horizontal"
+                    android:orientation="horizontal">
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginRight="10dp"
+                        android:layout_gravity="center_horizontal">
+
+                        <com.facebook.drawee.view.SimpleDraweeView
+                            android:id="@+id/output_exodia_2_webp_s"
+                            android:layout_width="128dp"
+                            android:layout_height="128dp"
+                            android:layout_gravity="center_horizontal"
+                            android:scaleType="centerCrop"
+                            android:visibility="invisible" />
+
+                        <ProgressBar
+                            android:id="@+id/output_exodia_2_webp_l"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:visibility="visible" />
+
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal">
+
+                        <com.facebook.drawee.view.SimpleDraweeView
+                            android:id="@+id/output_exodia_3_webp_s"
+                            android:layout_width="128dp"
+                            android:layout_height="128dp"
+                            android:layout_gravity="center_horizontal"
+                            android:scaleType="centerCrop"
+                            android:visibility="invisible" />
+
+                        <ProgressBar
+                            android:id="@+id/output_exodia_3_webp_l"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:visibility="visible" />
+
+                    </FrameLayout>
+                </LinearLayout>
+            </LinearLayout>
 
         </LinearLayout>
     </com.example.samplestickerapp.LockableScrollView>
@@ -86,44 +195,53 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
         android:background="#FFFFFF"
-        android:padding="16dp"
-        android:gravity="center_horizontal">
+        android:gravity="center_horizontal"
+        android:orientation="horizontal"
+        android:padding="16dp">
 
         <ImageButton
             android:id="@+id/btn_pause"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_pause"
+            android:layout_marginEnd="16dp"
             android:background="?android:selectableItemBackgroundBorderless"
             android:contentDescription="Pausar"
-            android:layout_marginEnd="16dp" />
+            android:src="@drawable/ic_pause" />
 
         <ImageButton
             android:id="@+id/btn_opcoes"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_editar"
+            android:layout_marginEnd="16dp"
             android:background="?android:selectableItemBackgroundBorderless"
             android:contentDescription="Editar"
-            android:layout_marginEnd="16dp" />
+            android:src="@drawable/ic_editar" />
 
         <ImageButton
             android:id="@+id/btn_crop"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_preview"
+            android:layout_marginEnd="16dp"
             android:background="?android:selectableItemBackgroundBorderless"
             android:contentDescription="Preview"
-            android:layout_marginEnd="16dp" />
+            android:src="@drawable/ic_preview" />
+
+        <ImageButton
+            android:id="@+id/btn_exodia"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="16dp"
+            android:background="?android:selectableItemBackgroundBorderless"
+            android:contentDescription="Exodia"
+            android:src="@drawable/ic_exodia_quadrants" />
 
         <ImageButton
             android:id="@+id/btn_salvar"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_save"
             android:background="?android:selectableItemBackgroundBorderless"
-            android:contentDescription="Salvar"/>
+            android:contentDescription="Salvar"
+            android:src="@drawable/ic_save" />
     </LinearLayout>
 </RelativeLayout>
