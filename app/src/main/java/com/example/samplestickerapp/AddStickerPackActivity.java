@@ -31,7 +31,7 @@ public abstract class AddStickerPackActivity extends BaseActivity {
 
     protected void addStickerPackToWhatsApp(String identifier, String stickerPackName) {
         try {
-            //ContentsJsonHelper.updatePackAndContentProvider(identifier, this);
+            ContentsJsonHelper.updatePackAndContentProvider(identifier, this);
 
             //if neither WhatsApp Consumer or WhatsApp Business is installed, then tell user to install the apps.
             if (!WhitelistCheck.isWhatsAppConsumerAppInstalled(getPackageManager()) && !WhitelistCheck.isWhatsAppSmbAppInstalled(getPackageManager())) {

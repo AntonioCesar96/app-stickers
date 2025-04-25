@@ -112,11 +112,11 @@ public class CropVideoActivity extends AppCompatActivity {
 
         btnCrop.setOnClickListener(v -> {
             exodia = false;
-            convertMp4ToWebpAdaptive(false);
+            convertMp4ToWebpAdaptive();
         });
         btnExodia.setOnClickListener(v -> {
             exodia = true;
-            convertMp4ToWebpAdaptive(true);
+            convertMp4ToWebpAdaptive();
         });
         btnOpcoes.setOnClickListener(v -> openDialogOpcoesVideo());
         btnSalvar.setOnClickListener(v -> enviarWhatsapp());
@@ -198,8 +198,8 @@ public class CropVideoActivity extends AppCompatActivity {
 
         // inicia conversão (exemplo)
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            exodia = true;
-            convertMp4ToWebpAdaptive(true);
+            exodia = false;
+            convertMp4ToWebpAdaptive();
         }, 100);
     }
 
@@ -211,7 +211,7 @@ public class CropVideoActivity extends AppCompatActivity {
         btnPause.setImageResource(R.drawable.ic_pause);
     }
 
-    public void convertMp4ToWebpAdaptive(boolean exodia) {
+    public void convertMp4ToWebpAdaptive() {
         if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
             mostrarVideo();
             Toast.makeText(CropVideoActivity.this,
