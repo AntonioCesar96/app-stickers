@@ -24,6 +24,12 @@ import com.facebook.drawee.backends.pipeline.Fresco;
 import com.facebook.drawee.interfaces.DraweeController;
 import com.facebook.drawee.view.SimpleDraweeView;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewViewHolder> {
 
     private static final float COLLAPSED_STICKER_PREVIEW_BACKGROUND_ALPHA = 1f;
@@ -45,6 +51,17 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     float expandedViewTopY;
     OnUpdateSizeListener onUpdateSizeListener;
 
+    // Estado de seleção
+    private OnSelectionListener onSelectionListener;
+    private boolean selectionMode = false;
+    private final Set<Integer> selectedPositions = new HashSet<>();
+
+    public interface OnSelectionListener {
+        void onSelectionModeChanged(boolean active);
+
+        void onSelectionCountChanged(int count);
+    }
+
     StickerPreviewAdapter(
             @NonNull final LayoutInflater layoutInflater,
             final int errorResource,
@@ -52,7 +69,8 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             final int cellPadding,
             @NonNull final StickerPack stickerPack,
             final SimpleDraweeView expandedStickerView,
-            OnUpdateSizeListener onUpdateSizeListener) {
+            OnUpdateSizeListener onUpdateSizeListener,
+            OnSelectionListener onSelectionListener) {
         this.cellSize = cellSize;
         this.cellPadding = cellPadding;
         this.cellLimit = 0;
@@ -61,6 +79,7 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         this.stickerPack = stickerPack;
         this.expandedStickerPreview = expandedStickerView;
         this.onUpdateSizeListener = onUpdateSizeListener;
+        this.onSelectionListener = onSelectionListener;
     }
 
     @NonNull
@@ -79,33 +98,107 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     }
 
     @Override
-    public void onBindViewHolder(@NonNull final StickerPreviewViewHolder stickerPreviewViewHolder, final int position) {
+    public void onBindViewHolder(@NonNull final StickerPreviewViewHolder holder, final int position) {
+        holder.stickerPreviewView.setImageResource(errorResource);
+        holder.stickerPreviewView.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName));
 
-        stickerPreviewViewHolder.stickerPreviewView.setImageResource(errorResource);
+        // Indicação visual de seleção
+        holder.selectionOverlay.setVisibility(
+                selectedPositions.contains(position) ? View.VISIBLE : View.GONE
+        );
+        holder.selectionCheck.setVisibility(
+                selectedPositions.contains(position) ? View.VISIBLE : View.GONE
+        );
 
-        //if (!stickerPack.animatedStickerPack) {
-            stickerPreviewViewHolder.stickerPreviewView.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName));
-//        } else {
-//            final Uri stickerAssetUri = StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName)
-//                    .buildUpon()
-//                    .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
-//                    .build();
-//            DraweeController controller = Fresco.newDraweeControllerBuilder()
-//                    .setUri(stickerAssetUri)
-//                    .setAutoPlayAnimations(true)
-//                    .build();
-//
-//            stickerPreviewViewHolder.stickerPreviewView.setImageResource(R.drawable.sticker_error);
-//            stickerPreviewViewHolder.stickerPreviewView.setController(controller);
-//        }
-
-        stickerPreviewViewHolder.stickerPreviewView.setOnClickListener(v -> expandPreview(position, stickerPreviewViewHolder.stickerPreviewView));
-
-        stickerPreviewViewHolder.stickerPreviewView.setOnLongClickListener(v -> {
-            showOptionsDialog(v.getContext(), position);
+        // Clique e long-click
+        holder.stickerPreviewView.setOnLongClickListener(v -> {
+            if (!selectionMode) {
+                // entrar em modo seleção
+                selectionMode = true;
+                selectedPositions.add(position);
+                notifyItemChanged(position);
+                onSelectionListener.onSelectionModeChanged(true);
+                onSelectionListener.onSelectionCountChanged(selectedPositions.size());
+            } else {
+                toggleSelection(position);
+            }
             return true;
         });
+
+        holder.stickerPreviewView.setOnClickListener(v -> {
+            if (selectionMode) {
+                toggleSelection(position);
+            } else {
+                expandPreview(position, holder.stickerPreviewView);
+            }
+        });
     }
+
+    private void toggleSelection(int position) {
+        if (selectedPositions.contains(position)) {
+            selectedPositions.remove(position);
+        } else {
+            selectedPositions.add(position);
+        }
+        notifyItemChanged(position);
+        onSelectionListener.onSelectionCountChanged(selectedPositions.size());
+        if (selectedPositions.isEmpty()) {
+            // sair do modo seleção
+            selectionMode = false;
+            onSelectionListener.onSelectionModeChanged(false);
+        }
+    }
+
+    public void handleDelete(Context context) {
+        if ((stickerPack.getStickers().size() - selectedPositions.size()) < 3) {
+            Toast.makeText(context, "Não foi possível excluir " + selectedPositions.size() + " figurinha(s)" +
+                    "\nUm pacote deve ter no mínimo 3, excluindo " + selectedPositions.size() + " " +
+                    "o pacote ficaria com " + (stickerPack.getStickers().size() - selectedPositions.size()), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle("Confirmar exclusão")
+                .setMessage("Tem certeza que deseja excluir " + selectedPositions.size() + " figurinha(s)")
+                .setPositiveButton("Sim", (d, which) -> {
+                    deleteSelectedItems(context);
+                })
+                .setNegativeButton("Não", null)
+                .show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
+    }
+
+    private void deleteSelectedItems(Context context) {
+        if (selectedPositions.isEmpty()) return;
+        List<Integer> toRemove = new ArrayList<>(selectedPositions);
+        Collections.sort(toRemove, Collections.reverseOrder());
+
+        ArrayList<String> imageFileNames = new ArrayList<>();
+        for (int pos : toRemove) {
+            imageFileNames.add(stickerPack.getStickers().get(pos).imageFileName);
+        }
+
+        ContentsJsonHelper.removerFigurinhas(stickerPack.identifier, imageFileNames, context);
+
+        for (int pos : toRemove) {
+            stickerPack.getStickers().remove(pos);
+            notifyItemRemoved(pos);
+            notifyItemRangeChanged(pos, stickerPack.getStickers().size() - pos);
+        }
+
+        ContentsJsonHelper.stickerPackAlterado = stickerPack;
+        stickerPack.setStickers(stickerPack.getStickers());
+        onUpdateSizeListener.onUpdateSizeListener(stickerPack);
+
+        // reset selection
+        selectedPositions.clear();
+        selectionMode = false;
+        onSelectionListener.onSelectionCountChanged(0);
+        onSelectionListener.onSelectionModeChanged(false);
+    }
+
 
     @Override
     public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
@@ -120,56 +213,6 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         recyclerView.removeOnScrollListener(hideExpandedViewScrollListener);
         this.recyclerView = null;
     }
-
-    private void showOptionsDialog(Context context, int position) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Escolha uma opção")
-                .setItems(new CharSequence[]{"Editar", "Excluir"}, (dialog, which) -> {
-                    switch (which) {
-                        case 0:
-                            handleEdit(context, position);
-                            break;
-                        case 1:
-                            handleDelete(context, position);
-                            break;
-                    }
-                })
-                .show();
-    }
-
-    private void handleEdit(Context context, int position) {
-        Toast.makeText(context, "Editar item na posição: " + position, Toast.LENGTH_SHORT).show();
-    }
-
-    private void handleDelete(Context context, int position) {
-        AlertDialog dialog = new AlertDialog.Builder(context)
-                .setTitle("Confirmar exclusão")
-                .setMessage("Tem certeza que deseja excluir esta figurinha?")
-                .setPositiveButton("Excluir", (d, which) -> {
-                    if(stickerPack.getStickers().size() <= 3) {
-                        Toast.makeText(context, "Não foi possível excluir \nUm pacote deve ter no mínimo 3 figurinhas", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    Sticker removido = stickerPack.getStickers().remove(position);
-                    ContentsJsonHelper.removerFigurinha(stickerPack.identifier, removido.imageFileName, context);
-
-                    notifyItemRemoved(position);
-                    notifyItemRangeChanged(position, getItemCount());
-
-                    ContentsJsonHelper.stickerPackAlterado = stickerPack;
-
-                    stickerPack.setStickers(stickerPack.getStickers());
-                    onUpdateSizeListener.onUpdateSizeListener(stickerPack);
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
-
-    }
-
 
     private final RecyclerView.OnScrollListener hideExpandedViewScrollListener =
             new RecyclerView.OnScrollListener() {

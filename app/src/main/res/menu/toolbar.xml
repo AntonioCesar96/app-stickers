@@ -2,6 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_delete"
+        android:icon="@drawable/ic_clear"
+        android:title="@string/more_info_button"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_adicionar_novo"
         android:icon="@drawable/sticker_3rdparty_web"
         android:title="@string/more_info_button"

@@ -75,7 +75,13 @@ public class ContentsJsonHelper {
             final StickerPackModel stickerPack = new StickerPackModel(identifier, name, publisher, trayImage, publisherEmail, publisherWebsite, privacyPolicyWebsite, licenseAgreementWebsite, imageDataVersion, avoidCache, animatedStickerPack);
 
             List<StickerModel> stickers = new ArrayList<>();
+            int count = 0;
             for (String arquivo : pasta.arquivos) {
+                count += 1;
+                if (count > 30) {
+                    break;
+                }
+
                 StickerModel sticker = new StickerModel(arquivo, Arrays.asList("😂", "🎉"), "");
                 stickers.add(sticker);
             }
@@ -188,6 +194,21 @@ public class ContentsJsonHelper {
         try {
             File sticker = new File(new File(getAssetsDir(), identifier), imageFileName);
             sticker.delete();
+
+            ContentsJsonHelper.updatePack(identifier);
+            ContentsJsonHelper.atualizaContentProvider(context);
+        } catch (Exception e) {
+            Toast.makeText(context, e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+    }
+
+    public static void removerFigurinhas(String identifier, ArrayList<String> imageFileNames, Context context) {
+        try {
+            for (String imageFileName : imageFileNames) {
+                File sticker = new File(new File(getAssetsDir(), identifier), imageFileName);
+                sticker.delete();
+            }
 
             ContentsJsonHelper.updatePack(identifier);
             ContentsJsonHelper.atualizaContentProvider(context);

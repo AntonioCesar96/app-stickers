@@ -70,9 +70,18 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         if (ContentsJsonHelper.stickerPackAlterado != null) {
             for (int i = 0; i < stickerPackList.size(); i++) {
                 if (ContentsJsonHelper.stickerPackAlterado.identifier.equals(stickerPackList.get(i).identifier)) {
+
+                    if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
+                        for (int x = 0; x < ContentsJsonHelper.stickersAlterados.size(); x++) {
+                            ContentsJsonHelper.stickerPackAlterado.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(x));
+                        }
+
+                        ContentsJsonHelper.stickersAlterados = new ArrayList<>();
+                    }
+
                     stickerPackList.set(i, ContentsJsonHelper.stickerPackAlterado);
                     allStickerPacksListAdapter.notifyItemChanged(stickerPackList.indexOf(ContentsJsonHelper.stickerPackAlterado));
-                    Toast.makeText(this, "Pacote " + ContentsJsonHelper.stickerPackAlterado.identifier + " atualizado", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Pacote " + ContentsJsonHelper.stickerPackAlterado.identifier + " atualizado", Toast.LENGTH_SHORT).show();
                     ContentsJsonHelper.stickerPackAlterado = null;
                     break;
                 }

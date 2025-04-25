@@ -16,11 +16,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.text.InputType;
-import android.text.format.Formatter;
 import android.util.Patterns;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,7 +27,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,19 +35,13 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.arthenica.ffmpegkit.FFmpegKit;
-import com.arthenica.ffmpegkit.ReturnCode;
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -77,7 +67,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
 
     private RecyclerView recyclerView;
     private GridLayoutManager layoutManager;
-    private StickerPreviewAdapter stickerPreviewAdapter;
+    private StickerPreviewAdapter adapter;
     private int numColumns;
     private View addButton;
     private View alreadyAddedText;
@@ -86,6 +76,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private TextView packSizeTextView;
     private SimpleDraweeView expandedStickerView;
     private AlertDialog dialog;
+    private MenuItem deleteMenuItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,13 +98,13 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         recyclerView.getViewTreeObserver().addOnGlobalLayoutListener(pageLayoutListener);
         recyclerView.addOnScrollListener(dividerScrollListener);
         divider = findViewById(R.id.divider);
-        if (stickerPreviewAdapter == null) {
-            stickerPreviewAdapter = new StickerPreviewAdapter(getLayoutInflater(), R.drawable.sticker_error, getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_size), getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_padding),
-                    stickerPack, expandedStickerView, stickerPack1 -> packSizeTextView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) stickerPack.getTotalSize() / 1024.0) + " KB"));
-            recyclerView.setAdapter(stickerPreviewAdapter);
+        if (adapter == null) {
+            adapter = new StickerPreviewAdapter(getLayoutInflater(), R.drawable.sticker_error, getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_size), getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_padding),
+                    stickerPack, expandedStickerView, getOnUpdateSizeListener(), getOnSelectionListener());
+            recyclerView.setAdapter(adapter);
         }
         packNameTextView.setText(stickerPack.name);
-        packPublisherTextView.setText(stickerPack.publisher);
+        packPublisherTextView.setText(stickerPack.getStickers().size() + " figurinhas");
         packTrayIcon.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile));
         packSizeTextView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) stickerPack.getTotalSize() / 1024.0) + " KB");
 
@@ -126,6 +117,33 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
 
         limparTemp();
+    }
+
+    private StickerPreviewAdapter.OnUpdateSizeListener getOnUpdateSizeListener() {
+        return stickerPack1 -> packSizeTextView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) stickerPack.getTotalSize() / 1024.0) + " KB");
+    }
+
+    private StickerPreviewAdapter.OnSelectionListener getOnSelectionListener() {
+        return new StickerPreviewAdapter.OnSelectionListener() {
+            @Override
+            public void onSelectionModeChanged(boolean active) {
+                if (deleteMenuItem != null) {
+                    deleteMenuItem.setVisible(active);
+                }
+            }
+
+            @Override
+            public void onSelectionCountChanged(int count) {
+                if (deleteMenuItem != null) {
+                    if (count == 0) {
+                        getSupportActionBar().setTitle("Detalhes");
+                    } else {
+                        getSupportActionBar().setTitle(String.format("Excluir (%d)", count));
+                        deleteMenuItem.setTitle(String.format("Excluir (%d)", count));
+                    }
+                }
+            }
+        };
     }
 
     private void limparTemp() {
@@ -144,12 +162,12 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 dialog.dismiss();
 
             for (int i = 0; i < ContentsJsonHelper.stickersAlterados.size(); i++) {
-                stickerPreviewAdapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(0));
-                stickerPreviewAdapter.notifyItemInserted(0);
-                stickerPreviewAdapter.notifyItemRangeChanged(0, stickerPreviewAdapter.stickerPack.getStickers().size());
+                adapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(i));
+                adapter.notifyItemInserted(0);
+                adapter.notifyItemRangeChanged(0, adapter.stickerPack.getStickers().size());
             }
 
-            ContentsJsonHelper.stickerPackAlterado = stickerPreviewAdapter.stickerPack;
+            ContentsJsonHelper.stickerPackAlterado = adapter.stickerPack;
             ContentsJsonHelper.stickersAlterados = new ArrayList<>();
         }
     }
@@ -168,12 +186,29 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.toolbar, menu);
+        // inicialmente oculto
+        deleteMenuItem = menu.findItem(R.id.action_delete);
+        deleteMenuItem.setVisible(false);
+
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
+        if (item.getItemId() == R.id.action_delete && stickerPack != null) {
+            adapter.handleDelete(this);
+            return true;
+        }
         if (item.getItemId() == R.id.action_adicionar_novo && stickerPack != null) {
+            if ((stickerPack.getStickers().size() + 1) > 30) {
+                Toast.makeText(StickerPackDetailsActivity.this,
+                        "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                                "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
+                                + (stickerPack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
+                return true;
+            }
+
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("Digite algo");
 
@@ -239,6 +274,14 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         }
 
         if (item.getItemId() == R.id.action_listar_diretorio && stickerPack != null) {
+            if ((stickerPack.getStickers().size() + 1) > 30) {
+                Toast.makeText(StickerPackDetailsActivity.this,
+                        "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                                "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
+                                + (stickerPack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
+                return true;
+            }
+
             Intent intent = new Intent(this, FileExplorerActivity.class);
             intent.putExtra("sticker_pack", stickerPack);
             startActivity(intent);
@@ -350,8 +393,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         if (this.numColumns != numColumns) {
             layoutManager.setSpanCount(numColumns);
             this.numColumns = numColumns;
-            if (stickerPreviewAdapter != null) {
-                stickerPreviewAdapter.notifyDataSetChanged();
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
             }
         }
     }

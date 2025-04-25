@@ -79,7 +79,6 @@ public class CropVideoActivity extends AppCompatActivity {
     LinearLayout stickerContainerExodia;
     boolean exodia = false;
     List<ControleSticker> controleStickers = new ArrayList<>();
-    HashMap<String, String> mapInfos = new HashMap<String, String>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -213,6 +212,23 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     public void convertMp4ToWebpAdaptive(boolean exodia) {
+        if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
+            mostrarVideo();
+            Toast.makeText(CropVideoActivity.this,
+                    "Não é possível adicionar mais 4 figurinhas nesse pacote, pois em um pacote é permitido " +
+                            "30 figurinhas, se gerarmos mais 4 nesse pacote ele ficará com "
+                            + (stickerPack.getStickers().size() + 4) + " figurinhas", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!exodia && (stickerPack.getStickers().size() + 1) > 30) {
+            mostrarVideo();
+            Toast.makeText(CropVideoActivity.this,
+                    "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                            "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
+                            + (stickerPack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         findViewById(R.id.output_exodia_0_webp_l).setVisibility(View.VISIBLE);
         findViewById(R.id.output_exodia_1_webp_l).setVisibility(View.VISIBLE);
         findViewById(R.id.output_exodia_2_webp_l).setVisibility(View.VISIBLE);
@@ -323,27 +339,16 @@ public class CropVideoActivity extends AppCompatActivity {
                     byte[] bytes = getBytes(webpFile);
                     WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
                     webpInfos = String.format(Locale.US,
-                            "%dfps, %.2fs, %.2fKB, tentativa: %d",
+                            "Fps: %d \nDuração: %.2fs \nTamanho: %.2fKB",
                             webPImage.getFrameCount(),
                             webPImage.getDuration() / 1000f,
-                            webPImage.getSizeInBytes() / 1024f,
-                            ctx.attempt
+                            webPImage.getSizeInBytes() / 1024f
                     );
-
-                    mapInfos.put(webpFile.getName(), webpInfos);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
 
                 String finalWebpInfos = webpInfos;
-                runOnUiThread(() -> {
-                    TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
-                    String infos = "";
-                    for (Map.Entry<String, String> entry : mapInfos.entrySet()) {
-                        infos += entry.getKey() + " = " + entry.getValue() + "\n";
-                    }
-                    infoTv.setText(infos);
-                });
 
                 long size = webpFile.length();
                 if (ctx.sizeAnterior == 0) ctx.sizeAnterior = size;
@@ -378,9 +383,7 @@ public class CropVideoActivity extends AppCompatActivity {
     private AlertDialog createProgressDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
         ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
-        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
         progressBar.setMax(100);
-        attemptsTv.setText("Tentativa: 0");
         return new AlertDialog.Builder(this)
                 .setTitle("Convertendo vídeo")
                 .setView(dialogView)
@@ -389,18 +392,11 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private void resetProgressUI(String nomeArquivo, int attempt) {
-        runOnUiThread(() -> {
-            ProgressBar pb = progressDialog.findViewById(R.id.progress_bar);
-            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
-            pb.setProgress(0);
-            //tv.setText("Arquivo:" + nomeArquivo + "\nTentativa: " + attempt);
-        });
+
     }
 
     private void updateProgress(String nomeArquivo, int attempt) {
-        runOnUiThread(() -> {
-            //((TextView) progressDialog.findViewById(R.id.attempts_tv)).setText("Arquivo:" + nomeArquivo + "\nTentativa: " + attempt);
-        });
+
     }
 
     private void showError(Session session) {
@@ -454,15 +450,19 @@ public class CropVideoActivity extends AppCompatActivity {
             }
         }
 
-        videoContainer.setVisibility(View.VISIBLE);
-        progressBarVideoView.setVisibility(View.GONE);
-        bottomButtons.setVisibility(View.VISIBLE);
+        mostrarVideo();
 
         if ((exodia && controleStickers.size() == 4) || (!exodia && controleStickers.size() == 1)) {
             runOnUiThread(() -> {
                 progressDialog.dismiss();
             });
         }
+    }
+
+    private void mostrarVideo() {
+        videoContainer.setVisibility(View.VISIBLE);
+        progressBarVideoView.setVisibility(View.GONE);
+        bottomButtons.setVisibility(View.VISIBLE);
     }
 
     // helper para atribuir Uri e animações
@@ -575,6 +575,23 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private void enviarWhatsapp() {
+        if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
+            mostrarVideo();
+            Toast.makeText(CropVideoActivity.this,
+                    "Não é possível adicionar mais 4 figurinhas nesse pacote, pois em um pacote é permitido " +
+                            "30, se criarmos mais 4 nesse pacote ele ficará com "
+                            + (stickerPack.getStickers().size() + 4), Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!exodia && (stickerPack.getStickers().size() + 1) > 30) {
+            mostrarVideo();
+            Toast.makeText(CropVideoActivity.this,
+                    "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                            "30, se criarmos mais 1 nesse pacote ele ficará com "
+                            + (stickerPack.getStickers().size() + 1), Toast.LENGTH_LONG).show();
+            return;
+        }
+
         // Cria lista de arquivos temporários (1 ou 4) para envio
         List<File> tempFiles = new ArrayList<>();
         File baseDir = Environment.getExternalStorageDirectory();
@@ -657,6 +674,7 @@ public class CropVideoActivity extends AppCompatActivity {
 
         if (naoDeuErro) {
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
+            ContentsJsonHelper.stickerPackAlterado = stickerPack;
             ContentsJsonHelper.stickersAlterados = stickers;
 
             finish();

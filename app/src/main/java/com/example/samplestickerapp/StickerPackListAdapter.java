@@ -72,21 +72,7 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         for (int i = 0; i < actualNumberOfStickersToShow; i++) {
 
             final SimpleDraweeView rowImage = (SimpleDraweeView) LayoutInflater.from(context).inflate(R.layout.sticker_packs_list_image_item, viewHolder.imageRowView, false);
-            //if (!pack.animatedStickerPack) {
-                rowImage.setImageURI(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName));
-//            } else {
-//                final Uri stickerAssetUri = StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName)
-//                        .buildUpon()
-//                        .appendQueryParameter("t", String.valueOf(System.currentTimeMillis()))
-//                        .build();
-//                DraweeController controller = Fresco.newDraweeControllerBuilder()
-//                        .setUri(stickerAssetUri)
-//                        .setAutoPlayAnimations(true)
-//                        .build();
-//
-//                rowImage.setImageResource(R.drawable.sticker_error);
-//                rowImage.setController(controller);
-//            }
+            rowImage.setImageURI(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName));
 
             final LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) rowImage.getLayoutParams();
             final int marginBetweenImages = minMarginBetweenImages - lp.leftMargin - lp.rightMargin;
@@ -99,7 +85,7 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         setAddButtonAppearance(viewHolder.addButton, pack);
         viewHolder.animatedStickerPackIndicator.setVisibility(pack.animatedStickerPack ? View.VISIBLE : View.GONE);
 
-        viewHolder.publisherView.setText(pack.publisher);
+        viewHolder.publisherView.setText(pack.getStickers().size() + " figurinhas");
         viewHolder.filesizeView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) pack.getTotalSize() / 1024.0) + " KB");
         viewHolder.titleView.setText(pack.name);
 
@@ -142,7 +128,11 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
 
     private void setAddButtonAppearance(ImageView addButton, StickerPack pack) {
         addButton.setImageResource(R.drawable.sticker_3rdparty_add);
-        addButton.setOnClickListener(v -> onAddButtonClickedListener.onAddButtonClicked(pack));
+        addButton.setOnClickListener(v -> {
+            Intent intent = new Intent(addButton.getContext(), FileExplorerActivity.class);
+            intent.putExtra("sticker_pack", pack);
+            addButton.getContext().startActivity(intent);
+        });
         TypedValue outValue = new TypedValue();
         addButton.getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
         addButton.setBackgroundResource(outValue.resourceId);
