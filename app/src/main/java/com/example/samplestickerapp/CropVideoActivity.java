@@ -604,7 +604,7 @@ public class CropVideoActivity extends AppCompatActivity {
             }
         }
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < tempFiles.size(); i++) {
             if (!tempFiles.get(i).exists()) {
                 Toast.makeText(this, "Uma figurinha não existe", Toast.LENGTH_SHORT).show();
                 return;
@@ -613,7 +613,7 @@ public class CropVideoActivity extends AppCompatActivity {
 
         ArrayList<Sticker> stickers = new ArrayList<>();
         boolean naoDeuErro = true;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < tempFiles.size(); i++) {
             File fileTemp = tempFiles.get(i);
 
             byte[] bytes = getBytes(fileTemp);

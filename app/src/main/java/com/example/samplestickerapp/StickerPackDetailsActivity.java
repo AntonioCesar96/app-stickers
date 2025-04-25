@@ -14,10 +14,12 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.util.Patterns;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -31,16 +33,31 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.facebook.common.executors.CallerThreadExecutor;
+import com.facebook.common.references.CloseableReference;
+import com.facebook.datasource.DataSource;
+import com.facebook.drawee.backends.pipeline.Fresco;
 import com.facebook.drawee.view.SimpleDraweeView;
+import com.facebook.imagepipeline.common.ImageDecodeOptions;
+import com.facebook.imagepipeline.core.ImagePipeline;
+import com.facebook.imagepipeline.datasource.BaseBitmapDataSubscriber;
+import com.facebook.imagepipeline.image.CloseableImage;
+import com.facebook.imagepipeline.request.ImageRequest;
+import com.facebook.imagepipeline.request.ImageRequestBuilder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Locale;
 
 import okhttp3.OkHttpClient;
@@ -108,8 +125,6 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         packTrayIcon.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile));
         packSizeTextView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) stickerPack.getTotalSize() / 1024.0) + " KB");
 
-        addButton.setOnClickListener(v -> addStickerPackToWhatsApp(stickerPack.identifier, stickerPack.name));
-
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(showUpButton);
             getSupportActionBar().setTitle("Detalhes");
@@ -117,6 +132,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
 
         limparTemp();
+
+        addButton.setOnClickListener(v -> adicionarPacoteNoWhats(v));
     }
 
     private StickerPreviewAdapter.OnUpdateSizeListener getOnUpdateSizeListener() {
@@ -162,9 +179,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 dialog.dismiss();
 
             for (int i = 0; i < ContentsJsonHelper.stickersAlterados.size(); i++) {
-                adapter.stickerPack.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(i));
-                adapter.notifyItemInserted(0);
-                adapter.notifyItemRangeChanged(0, adapter.stickerPack.getStickers().size());
+                adapter.stickerPack.getStickers().add(ContentsJsonHelper.stickersAlterados.get(i));
+                adapter.notifyItemInserted(adapter.stickerPack.getStickers().size() - 1);
+                adapter.notifyItemRangeChanged(adapter.stickerPack.getStickers().size() - 1, 1);
             }
 
             ContentsJsonHelper.stickerPackAlterado = adapter.stickerPack;
@@ -397,6 +414,82 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 adapter.notifyDataSetChanged();
             }
         }
+    }
+
+    private void adicionarPacoteNoWhats(View v) {
+        File dir = new File(
+                Environment.getExternalStorageDirectory(),
+                "00-Figurinhas/assets/" + stickerPack.identifier
+        );
+
+        File[] webps = dir.listFiles((file, name) ->
+                name.toLowerCase(Locale.US).endsWith(".webp")
+        );
+        if (webps == null || webps.length == 0) {
+            Toast.makeText(v.getContext(),
+                    "Nenhuma .webp encontrada em " + dir.getAbsolutePath(),
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+        Arrays.sort(webps, Comparator.comparing(File::getName));
+        File firstWebp = webps[0];
+        Uri webpUri = Uri.fromFile(firstWebp);
+
+        ImageDecodeOptions decodeOptions = ImageDecodeOptions.newBuilder()
+                .setForceStaticImage(true)
+                .setDecodePreviewFrame(true)
+                .build();
+
+        ImageRequest request = ImageRequestBuilder
+                .newBuilderWithSource(webpUri)
+                .setImageDecodeOptions(decodeOptions)
+                .build();
+
+        ImagePipeline pipeline = Fresco.getImagePipeline();
+        pipeline.fetchDecodedImage(request, v.getContext())
+                .subscribe(new BaseBitmapDataSubscriber() {
+                    @Override
+                    public void onNewResultImpl(@Nullable Bitmap bitmap) {
+                        if (bitmap == null) {
+                            Toast.makeText(StickerPackDetailsActivity.this, "Erro: Bitmap null", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        try {
+                            // 3) Loop de compressão até <50KB
+                            int targetBytes = 50 * 1024;
+
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            Bitmap current = Bitmap.createScaledBitmap(bitmap, 200, 200, true);
+                            current.compress(Bitmap.CompressFormat.PNG, 100, baos);
+
+                            // reduz 30% até caber no alvo
+                            while (baos.size() > targetBytes) {
+                                baos.reset();
+                                int w = (int) (current.getWidth() * 0.7f);
+                                int h = (int) (current.getHeight() * 0.7f);
+                                current = Bitmap.createScaledBitmap(current, w, h, true);
+                                current.compress(Bitmap.CompressFormat.PNG, 100, baos);
+                            }
+
+                            File outFile = new File(dir, "icone.png");
+                            try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                                fos.write(baos.toByteArray());
+                                fos.flush();
+                            }
+
+                            addStickerPackToWhatsApp(stickerPack.identifier, stickerPack.name);
+                        } catch (IOException e) {
+                            Toast.makeText(StickerPackDetailsActivity.this, "Erro ao gerar icone.png do pacote: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailureImpl(DataSource dataSource) {
+                        Toast.makeText(StickerPackDetailsActivity.this, "Falha ao decodificar .webp", Toast.LENGTH_SHORT).show();
+                    }
+                }, CallerThreadExecutor.getInstance());
     }
 
     private final RecyclerView.OnScrollListener dividerScrollListener = new RecyclerView.OnScrollListener() {

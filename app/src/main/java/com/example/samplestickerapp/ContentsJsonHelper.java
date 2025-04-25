@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -50,6 +51,7 @@ public class ContentsJsonHelper {
 
             File[] arquivosNaPasta = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".webp"));
             if (arquivosNaPasta != null) {
+                Arrays.sort(arquivosNaPasta, Comparator.comparingLong(f -> Long.parseLong(f.getName().split("_")[0])));
                 for (File arquivo : arquivosNaPasta) {
                     arquivos.add(arquivo.getName());
                 }
