@@ -439,8 +439,7 @@ public class CropVideoActivity extends AppCompatActivity {
                     "00-Figurinhas/temp/output_cropped.webp"));
 
             simpleDraweeView.setOnClickListener(view2 ->
-                    Toast.makeText(this, webpInfos, Toast.LENGTH_SHORT).show()
-            );
+                    Toast.makeText(this, webpInfos, Toast.LENGTH_SHORT).show());
 
             simpleDraweeView.setVisibility(View.VISIBLE);
             progressBar.setVisibility(View.GONE);

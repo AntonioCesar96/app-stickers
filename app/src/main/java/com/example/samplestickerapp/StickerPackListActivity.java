@@ -11,6 +11,7 @@ package com.example.samplestickerapp;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.AssetManager;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
@@ -161,10 +162,10 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                     return;
                 }
 
-                final String folderName = nome.replace(" ", "_").toLowerCase();
+                //final String folderName = nome.replace(" ", "_").toLowerCase();
                 boolean jaExiste = false;
                 for (int i = 0; i < stickerPackList.size(); i++) {
-                    if (folderName.equals(stickerPackList.get(i).identifier)) {
+                    if (nome.equals(stickerPackList.get(i).identifier)) {
                         jaExiste = true;
                         break;
                     }
@@ -175,20 +176,31 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                     return;
                 }
 
-                String pastaDefault = animatedStickerPack ? "animada" : "estatica";
-                File rootDir = Environment.getExternalStorageDirectory();
-                File figurinhasDir = new File(rootDir, "00-Figurinhas/default/" + pastaDefault);
-                File stickerDir = new File(rootDir, "00-Figurinhas/assets/" + folderName);
-                stickerDir.mkdirs();
+                try {
+                    String pastaDefault = animatedStickerPack ? "Pacote 1" : "Pacote 2";
 
-                File[] arquivos = figurinhasDir.listFiles();
-                if (arquivos != null) {
-                    for (File arquivo : arquivos) {
-                        if (arquivo.isFile()) {
-                            File destino = new File(stickerDir, arquivo.getName());
-                            copiarArquivo(arquivo, destino);
+                    File rootDir = Environment.getExternalStorageDirectory();
+                    File stickerDir = new File(rootDir, "00-Figurinhas/assets/" + nome);
+                    stickerDir.mkdirs();
+
+                    String[] pacoteArquivos = getAssets().list(pastaDefault);
+
+                    for (String asset : pacoteArquivos) {
+                        String assetPath = pastaDefault + "/" + asset;
+                        File outputPath = new File(stickerDir, asset);
+
+                        try (InputStream in = getAssets().open(assetPath);
+                             OutputStream out = new FileOutputStream(outputPath)) {
+                            byte[] buffer = new byte[1024];
+                            int read;
+                            while ((read = in.read(buffer)) != -1) {
+                                out.write(buffer, 0, read);
+                            }
+                            out.flush();
                         }
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
                 ContentsJsonHelper.atualizaContentsJsonAndContentProvider(StickerPackListActivity.this);

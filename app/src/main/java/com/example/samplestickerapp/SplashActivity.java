@@ -10,10 +10,19 @@ package com.example.samplestickerapp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.AssetManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.widget.Button;
 
 import androidx.annotation.Nullable;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
 
 public class SplashActivity extends BaseActivity {
 
@@ -33,6 +42,7 @@ public class SplashActivity extends BaseActivity {
         if (!PermissionHelper.hasManageExternalStoragePermission(this)) {
             PermissionHelper.requestManageExternalStoragePermission(this);
         } else {
+            criarPastasIniciais();
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
 
             // Pode acessar os arquivos com segurança
@@ -43,11 +53,34 @@ public class SplashActivity extends BaseActivity {
         }
     }
 
+    private void criarPastasIniciais() {
+        try {
+            File figurinhasDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas");
+            if (!figurinhasDir.exists())
+                figurinhasDir.mkdirs();
+
+            File tempDir = new File(figurinhasDir, "temp");
+            if (!tempDir.exists())
+                tempDir.mkdirs();
+
+            File assetsDir = new File(figurinhasDir, "assets");
+            if (!assetsDir.exists()) {
+                assetsDir.mkdirs();
+                copyAssetsRecursively("Pacote 2", getAssets());
+                copyAssetsRecursively("Pacote 1", getAssets());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
 
         if (PermissionHelper.hasManageExternalStoragePermission(this)) {
+            criarPastasIniciais();
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
 
             // Pode acessar os arquivos com segurança
@@ -55,6 +88,29 @@ public class SplashActivity extends BaseActivity {
             startActivity(intent);
             finish();
             overridePendingTransition(0, 0);
+        }
+    }
+
+    private void copyAssetsRecursively(String path, AssetManager assetManager) throws IOException {
+        File assetsDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/assets");
+        String[] pacoteArquivos = assetManager.list(path);
+        File pacoteDir = new File(assetsDir, path);
+        pacoteDir.mkdirs();
+
+        for (String asset : pacoteArquivos) {
+            copyAssetFile(assetManager, path + "/" + asset, new File(pacoteDir, asset));
+        }
+    }
+
+    private void copyAssetFile(AssetManager assetManager, String assetPath, File outputPath) throws IOException {
+        try (InputStream in = assetManager.open(assetPath);
+             OutputStream out = new FileOutputStream(outputPath)) {
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            out.flush();
         }
     }
 }
