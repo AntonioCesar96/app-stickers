@@ -92,6 +92,16 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
         PlayerView playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
 
+        findViewById(R.id.bottom_buttons).setOnClickListener(view -> {
+            if (player != null) {
+                if (player.isPlaying()) {
+                    player.pause();
+                } else {
+                    player.play();
+                }
+            }
+        });
+
         // Defina o caminho do vídeo (ajuste conforme necessário)
         Uri videoUri = Uri.fromFile(videoFile);
 
@@ -156,7 +166,7 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     private Runnable updateVideoPositionRunnable = new Runnable() {
         @Override
         public void run() {
-            if (player != null && player.isPlaying()) {
+            if (player != null) {
                 // Se o vídeo ultrapassar o intervalo, ajusta a posição
                 int currentPosition = (int) player.getCurrentPosition();
                 if (currentPosition >= currentEndMs) {

@@ -1,15 +1,13 @@
 package com.example.samplestickerapp;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.BitmapFactory;
-import android.graphics.ImageDecoder;
+import android.graphics.Bitmap;
 import android.graphics.Movie;
-import android.graphics.drawable.AnimatedImageDrawable;
-import android.graphics.drawable.Drawable;
 import android.media.MediaMetadataRetriever;
-import android.os.Build;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 
@@ -32,14 +30,30 @@ import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.ReturnCode;
 import com.arthenica.ffmpegkit.Session;
 
+
+import com.facebook.common.executors.CallerThreadExecutor;
+import com.facebook.common.references.CloseableReference;
+import com.facebook.datasource.BaseDataSubscriber;
+import com.facebook.datasource.DataSource;
+import com.facebook.drawee.backends.pipeline.Fresco;
+import com.facebook.imagepipeline.animated.base.AnimatedImage;
+import com.facebook.imagepipeline.animated.base.AnimatedImageResult;
+import com.facebook.imagepipeline.common.ImageDecodeOptions;
+import com.facebook.imagepipeline.image.CloseableAnimatedImage;
+import com.facebook.imagepipeline.image.CloseableImage;
+import com.facebook.imagepipeline.request.ImageRequest;
+import com.facebook.imagepipeline.request.ImageRequestBuilder;
+
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class FileExplorerActivity extends AppCompatActivity {
@@ -269,7 +283,7 @@ public class FileExplorerActivity extends AppCompatActivity {
 
         if (extensaoImagens.stream().anyMatch(inputPath::endsWith)) {
             // Tratamento de GIF
-            if (inputPath.toLowerCase(Locale.US).endsWith(".gif")) {
+            if (inputPath.toLowerCase().endsWith(".gif")) {
                 try (FileInputStream fis = new FileInputStream(inputPath)) {
                     Movie movie = Movie.decodeStream(fis);
                     width = movie.width();            // largura do GIF :contentReference[oaicite:4]{index=4}
@@ -312,32 +326,9 @@ public class FileExplorerActivity extends AppCompatActivity {
 
             }
             // Tratamento de WebP
-            else if (inputPath.toLowerCase(Locale.US).endsWith(".webp")) {
-                // API 28+ suporta ImageDecoder com AnimatedImageDrawable
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    try {
-                        ImageDecoder.Source src = ImageDecoder.createSource(new File(inputPath));
-                        Drawable drawable = ImageDecoder.decodeDrawable(src);
-                        width = drawable.getIntrinsicWidth();  // largura do WebP :contentReference[oaicite:6]{index=6}
-                        if (drawable instanceof AnimatedImageDrawable) {
-                            // AnimatedImageDrawable não expõe duração total
-                            durationMs = 0;  // workaround; API não fornece getDuration() :contentReference[oaicite:7]{index=7}
-                        } else {
-                            // WebP estático
-                            durationMs = 0;
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-                // Fallback API < 28: trata como estático
-                else {
-                    BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inJustDecodeBounds = true;
-                    BitmapFactory.decodeFile(inputPath, opts);
-                    width = opts.outWidth;  // largura do WebP estático :contentReference[oaicite:8]{index=8}
-                    durationMs = 0;
-                }
+            else if (inputPath.toLowerCase().endsWith(".webp")) {
+                extractWebPFrames(inputPath, this, classs);
+                return;
             }
 
         } else {
@@ -353,14 +344,7 @@ public class FileExplorerActivity extends AppCompatActivity {
             retriever.release();
         }
 
-
-        // Build scale filter if needed
-        String videoFilter = "";
-        if (width > 512) {
-            videoFilter = "-vf \"scale=512:-2,fps=20\"";
-        } else {
-            videoFilter = "-vf \"fps=20\"";
-        }
+        String videoFilter = "-vf \"scale=512:-2,fps=24\"";
 
         // Prepare FFmpeg command
         String ffmpegCommand = String.format(Locale.US,
@@ -405,6 +389,199 @@ public class FileExplorerActivity extends AppCompatActivity {
                     double timeMs = statistics.getTime();
                     int percent = (int) ((timeMs / (float) durationMsFinal) * 100);
                     runOnUiThread(() -> progressDialog.setProgress(percent));
+                }
+        );
+    }
+
+    public void extractWebPFrames(String inputFilePath, Context context, Class classs) {
+        // 2. Cria e configura o ProgressDialog
+        ProgressDialog progressDialog = new ProgressDialog(context);
+        progressDialog.setTitle("Processando o vídeo");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setCancelable(false);
+        progressDialog.setMax(100);
+        progressDialog.setProgress(0);
+        progressDialog.show();
+
+        new Thread(() -> {
+            File outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/frames");
+            if (!outputDir.exists()) {
+                outputDir.mkdirs();
+            } else {
+                ContentsJsonHelper.deleteRecursive(outputDir);
+                outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/frames");
+                outputDir.mkdirs();
+            }
+
+            // 2. Prepara o request com decode de todos os frames
+            Uri uri = Uri.fromFile(new File(inputFilePath));
+            ImageDecodeOptions decodeOptions = ImageDecodeOptions.newBuilder()
+                    .setDecodeAllFrames(true)
+                    .build();                                                      // :contentReference[oaicite:5]{index=5}
+
+            ImageRequest request = ImageRequestBuilder.newBuilderWithSource(uri)
+                    .setImageDecodeOptions(decodeOptions)
+                    .build();
+
+            // 3. Submete à pipeline e registra um subscriber
+            DataSource<CloseableReference<CloseableImage>> dataSource =
+                    Fresco.getImagePipeline().fetchDecodedImage(request, /* callerContext */ null);  // :contentReference[oaicite:6]{index=6}
+
+            File finalOutputDir = outputDir;
+            dataSource.subscribe(new BaseDataSubscriber<CloseableReference<CloseableImage>>() {
+                @Override
+                protected void onNewResultImpl(DataSource<CloseableReference<CloseableImage>> ds) {
+                    if (!ds.isFinished()) {
+                        return;
+                    }
+                    CloseableReference<CloseableImage> imageRef = ds.getResult();
+                    if (imageRef == null) {
+                        return;
+                    }
+                    try {
+                        CloseableImage ci = imageRef.get();
+                        if (!(ci instanceof CloseableAnimatedImage)) {
+                            // Não é um WebP animado
+                            return;
+                        }
+                        CloseableAnimatedImage cai = (CloseableAnimatedImage) ci;
+                        AnimatedImageResult animatedResult = cai.getImageResult();
+
+                        // 4. Conta quantos frames existem
+                        AnimatedImage image = animatedResult.getImage();
+                        int frameCount = image.getFrameCount();
+                        int totalDurationMs = image.getDuration();
+                        int[] frameDurations = image.getFrameDurations();
+
+                        // 5. Itera e salva cada frame
+                        for (int i = 0; i < frameCount; i++) {
+                            // getDecodedFrame só funciona se decodeAllFrames=true
+                            CloseableReference<Bitmap> frameRef = animatedResult.getDecodedFrame(i);
+                            if (frameRef != null) {
+                                Bitmap frameBitmap = frameRef.get();
+                                File outFile = new File(finalOutputDir, String.format("frame_%03d.png", i));
+                                saveBitmapAsPng(frameBitmap, outFile);
+                                CloseableReference.closeSafely(frameRef);
+                            }
+
+                            // calcula percentual e atualiza ProgressDialog na UI
+                            int percent = (int) (((i + 1) / (float) frameCount) * 100);
+                            runOnUiThread(() -> {
+                                progressDialog.setProgress(percent);
+                            });
+                        }
+
+                        File frameTxtFile = new File(finalOutputDir, "frames.txt");
+                        try (BufferedWriter bw = new BufferedWriter(new FileWriter(frameTxtFile))) {
+                            for (int i = 0; i < frameCount; i++) {
+                                String name = String.format("frame_%03d.png", i);
+                                float durSec = frameDurations[i] / 1000f;
+                                bw.write("file '" + name + "'\n");
+                                bw.write("duration " + durSec + "\n");
+                            }
+                            // repetir o último frame sem duração para o FFmpeg não truncar
+                            bw.write("file '" + String.format("frame_%03d.png", frameCount - 1) + "'\n");
+                        } catch (IOException e) {
+                            runOnUiThread(() -> {
+                                Toast.makeText(context, "Falha ao criar frames.txt: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                progressDialog.dismiss();
+                            });
+                        }
+
+                        runOnUiThread(() -> {
+                            generateMp4FromFrames(context, frameTxtFile, classs, totalDurationMs, frameCount);
+                        });
+                    } finally {
+                        imageRef.close();
+
+                        // Após finalizar, fecha o diálogo
+                        runOnUiThread(() -> {
+                            progressDialog.dismiss();
+                        });
+                    }
+                }
+
+                @Override
+                protected void onFailureImpl(DataSource<CloseableReference<CloseableImage>> ds) {
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        Toast.makeText(context, "Falha ao extrair frames", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }, CallerThreadExecutor.getInstance());
+        }).start();
+    }
+
+    private void saveBitmapAsPng(Bitmap bitmap, File outFile) {
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(outFile);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    public void generateMp4FromFrames(Context context, File frameTxtFile, Class classs, int totalDurationMs, int frameCount) {
+        File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
+        File outputFile = new File(tempDir, "video_original_webp.mp4");
+        if (outputFile.exists()) {
+            outputFile.delete();
+            outputFile = new File(tempDir, "video_original_webp.mp4");
+        }
+
+        ProgressDialog progressDialog = new ProgressDialog(context);
+        progressDialog.setTitle("Processando o vídeo");
+        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progressDialog.setMax(100);
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        String cmd = String.format(
+                "-y -f concat -safe 0 -i \"%s\" " +
+                        "-vf \"scale=512:-2\" " +
+                        "-movflags +faststart " +
+                        "-c:v libx264 -preset veryslow " +
+                        "-pix_fmt yuv420p " +
+                        "\"%s\"",
+                frameTxtFile.getAbsolutePath(),
+                outputFile.getAbsolutePath()
+        );
+
+        File finalOutputFile = outputFile;
+        FFmpegKit.executeAsync(cmd,
+                session -> {
+                    ReturnCode code = session.getReturnCode();
+                    runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        if (ReturnCode.isSuccess(session.getReturnCode())) {
+                            Intent intent = new Intent(this, classs);
+                            intent.putExtra("sticker_pack", stickerPack);
+                            intent.putExtra("file_path", finalOutputFile.getAbsolutePath());
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(this,
+                                    "Falha ao processar vídeo. Veja o log para detalhes.",
+                                    Toast.LENGTH_LONG).show();
+                            Log.e("FFmpegKit",
+                                    session.getAllLogsAsString());
+                        }
+                    });
+                },
+                session -> {
+                },
+                stats -> {
+                    double elapsedMs = stats.getTime();
+                    double percent = Math.min(100,
+                            (elapsedMs / totalDurationMs) * 100);
+                    runOnUiThread(() -> progressDialog.setProgress((int) percent));
                 }
         );
     }

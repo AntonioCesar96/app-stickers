@@ -350,6 +350,11 @@ public class CropVideoActivity extends AppCompatActivity {
 
                 String finalWebpInfos = webpInfos;
 
+                runOnUiThread(() -> {
+                    TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
+                    infoTv.setText(finalWebpInfos);
+                });
+
                 long size = webpFile.length();
                 if (ctx.sizeAnterior == 0) ctx.sizeAnterior = size;
                 else if (ctx.sizeAnterior != size) ctx.sizeAnterior = size;
@@ -383,20 +388,30 @@ public class CropVideoActivity extends AppCompatActivity {
     private AlertDialog createProgressDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
         ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
+        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
         progressBar.setMax(100);
+        attemptsTv.setText("Reduzindo a figurinha até 500Kb \nTentativa: 0");
         return new AlertDialog.Builder(this)
-                .setTitle("Convertendo vídeo")
+                .setTitle("Criando figurinha")
                 .setView(dialogView)
                 .setCancelable(false)
                 .create();
     }
 
     private void resetProgressUI(String nomeArquivo, int attempt) {
-
+        runOnUiThread(() -> {
+            ProgressBar pb = progressDialog.findViewById(R.id.progress_bar);
+            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
+            pb.setProgress(0);
+            tv.setText("Reduzindo a figurinha até 500Kb \nTentativa: " + attempt);
+        });
     }
 
     private void updateProgress(String nomeArquivo, int attempt) {
-
+        runOnUiThread(() -> {
+            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
+            tv.setText("Reduzindo a figurinha até 500Kb \nTentativa: " + attempt);
+        });
     }
 
     private void showError(Session session) {

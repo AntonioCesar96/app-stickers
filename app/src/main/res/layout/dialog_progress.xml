@@ -13,4 +13,20 @@
         android:layout_gravity="center"
         android:indeterminate="true"/>
 
+    <TextView
+        android:id="@+id/attempts_tv"
+        android:layout_marginTop="16dp"
+        android:text="Tentativa: 0"
+        android:textSize="14sp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <!-- Novo TextView para infos do WebP -->
+    <TextView
+        android:id="@+id/webp_info_tv"
+        android:layout_marginTop="12dp"
+        android:text=""
+        android:textSize="14sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 </LinearLayout>
