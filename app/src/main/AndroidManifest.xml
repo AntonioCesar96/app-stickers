@@ -36,8 +36,7 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".EntryActivity">
-        </activity>
+        <activity android:name=".EntryActivity"></activity>
         <activity android:name=".StickerPackListActivity" />
         <activity
             android:name=".StickerPackDetailsActivity"
@@ -58,13 +57,15 @@
         </activity>
 
         <activity android:name=".CustomVideoRangeActivity">
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.MAIN" />-->
+            <!--            <intent-filter>-->
+            <!--                <action android:name="android.intent.action.MAIN" />-->
 
-<!--                <category android:name="android.intent.category.LAUNCHER" />-->
-<!--            </intent-filter>-->
+            <!--                <category android:name="android.intent.category.LAUNCHER" />-->
+            <!--            </intent-filter>-->
         </activity>
-        <activity android:name=".CropVideoActivity" android:windowSoftInputMode="adjustResize">
+        <activity
+            android:name=".CropVideoActivity"
+            android:windowSoftInputMode="adjustResize">
             <!--            <intent-filter>-->
             <!--                <action android:name="android.intent.action.MAIN" />-->
 
@@ -72,12 +73,20 @@
             <!--            </intent-filter>-->
         </activity>
 
-        <activity android:name=".FileExplorerActivity" >
-<!--            <intent-filter>-->
-<!--                <action android:name="android.intent.action.MAIN" />-->
+        <activity android:name=".FileExplorerActivity">
+            <!--            <intent-filter>-->
+            <!--                <action android:name="android.intent.action.MAIN" />-->
 
-<!--                <category android:name="android.intent.category.LAUNCHER" />-->
-<!--            </intent-filter>-->
+            <!--                <category android:name="android.intent.category.LAUNCHER" />-->
+            <!--            </intent-filter>-->
+        </activity>
+
+        <activity android:name=".CropImageActivity">
+            <!--                        <intent-filter>-->
+            <!--                            <action android:name="android.intent.action.MAIN" />-->
+
+            <!--                            <category android:name="android.intent.category.LAUNCHER" />-->
+            <!--                        </intent-filter>-->
         </activity>
 
         <provider

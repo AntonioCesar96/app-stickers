@@ -180,7 +180,7 @@ public class FileExplorerActivity extends AppCompatActivity {
                 if (segDir.getAbsolutePath().startsWith(rootPath)) {
                     loadDirectory(segDir);
                 } else {
-                    Toast.makeText(this, "Diretório não disponível", Toast.LENGTH_SHORT).show();
+                    loadDirectory(Environment.getExternalStorageDirectory());
                 }
             });
             breadcrumbLayout.addView(tv);
@@ -209,19 +209,27 @@ public class FileExplorerActivity extends AppCompatActivity {
         } else {
             String name = file.getName().toLowerCase();
 
-            List<String> extensaoImagens = Arrays.asList(
-                    ".gif", ".webp");
+            // TODO: quando .webp avaliar se é estatico ou nao para saber qual tela abrir
             List<String> extensaoVideos = Arrays.asList(
-                    ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts");
-
-            // TODO: Usar esse arquivo na seguintes telas
-            if (extensaoImagens.stream().anyMatch(name::endsWith) ||
-                    extensaoVideos.stream().anyMatch(name::endsWith)) {
+                    ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts", ".gif", ".webp");
+            if (extensaoVideos.stream().anyMatch(name::endsWith)) {
                 this.file = file;
                 openContextMenu(contextMenuAnchor);
-            } else {
-                Toast.makeText(this, "Arquivo não é um vídeo", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            List<String> extensaoImagens = Arrays.asList(
+                    ".jpg", ".jpeg", ".png", ".bmp", ".svg");
+            if (extensaoImagens.stream().anyMatch(name::endsWith)) {
+                this.file = file;
+                Intent intent = new Intent(this, CropImageActivity.class);
+                intent.putExtra("sticker_pack", stickerPack);
+                intent.putExtra("file_path", file.getAbsolutePath());
+                startActivity(intent);
+                return;
+            }
+
+            Toast.makeText(this, "Não é possível criar uma figurinha a partir desse arquivo", Toast.LENGTH_SHORT).show();
         }
     }
 

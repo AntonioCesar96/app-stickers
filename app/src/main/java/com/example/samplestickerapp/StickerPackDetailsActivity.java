@@ -175,16 +175,28 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         super.onResume();
 
         if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
+            if (!stickerPack.name.equals(ContentsJsonHelper.stickerPackAlterado.name)) {
+                Intent intent = new Intent(this, StickerPackDetailsActivity.class);
+                intent.putExtra(StickerPackDetailsActivity.EXTRA_SHOW_UP_BUTTON, true);
+                intent.putExtra("sticker_pack", ContentsJsonHelper.stickerPackAlterado);
+
+                ContentsJsonHelper.stickersAlterados = new ArrayList<>();
+
+                startActivity(intent);
+                finish();
+                return;
+            }
+
             if (dialog != null && dialog.isShowing())
                 dialog.dismiss();
 
             for (int i = 0; i < ContentsJsonHelper.stickersAlterados.size(); i++) {
-                adapter.stickerPack.getStickers().add(ContentsJsonHelper.stickersAlterados.get(i));
-                adapter.notifyItemInserted(adapter.stickerPack.getStickers().size() - 1);
-                adapter.notifyItemRangeChanged(adapter.stickerPack.getStickers().size() - 1, 1);
+                stickerPack.getStickers().add(ContentsJsonHelper.stickersAlterados.get(i));
+                adapter.notifyItemInserted(stickerPack.getStickers().size() - 1);
+                adapter.notifyItemRangeChanged(stickerPack.getStickers().size() - 1, 1);
             }
 
-            ContentsJsonHelper.stickerPackAlterado = adapter.stickerPack;
+            ContentsJsonHelper.stickerPackAlterado = stickerPack;
             ContentsJsonHelper.stickersAlterados = new ArrayList<>();
         }
     }

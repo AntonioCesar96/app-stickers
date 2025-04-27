@@ -1,15 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/root_layout"
+    android:id="@+id/root_layout_1"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
     <com.example.samplestickerapp.LockableScrollView
-        android:id="@+id/lockableScrollView"
+        android:id="@+id/lockableScrollView_1"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/bottom_buttons"
+        android:layout_above="@+id/bottom_buttons_1"
         android:fillViewport="true">
 
         <LinearLayout
@@ -19,26 +20,26 @@
             android:padding="5dp">
 
             <ProgressBar
-                android:id="@+id/sticker_loader_video_view"
+                android:id="@+id/sticker_loader_video_view_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:visibility="gone" />
 
             <FrameLayout
-                android:id="@+id/video_container"
+                android:id="@+id/video_container_1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:background="@drawable/checkerboard">
 
-                <VideoView
-                    android:id="@+id/video_view"
+                <ImageView
+                    android:id="@+id/imageView_1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content" />
 
                 <com.example.samplestickerapp.CropOverlayView
-                    android:id="@+id/crop_overlay"
+                    android:id="@+id/crop_overlay_1"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
 
@@ -46,7 +47,7 @@
 
             <!-- preview e loader… -->
             <FrameLayout
-                android:id="@+id/stickerContainerNaoExodia"
+                android:id="@+id/stickerContainerNaoExodia_1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
@@ -72,7 +73,7 @@
 
 
             <LinearLayout
-                android:id="@+id/stickerContainerExodia"
+                android:id="@+id/stickerContainerExodia_1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
@@ -191,7 +192,7 @@
     <!-- aqui ficariam seus botões de ação (Crop, Salvar etc.) -->
     <!-- Botões fixos embaixo -->
     <LinearLayout
-        android:id="@+id/bottom_buttons"
+        android:id="@+id/bottom_buttons_1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
@@ -201,7 +202,7 @@
         android:padding="16dp">
 
         <ImageButton
-            android:id="@+id/btn_salvar"
+            android:id="@+id/btn_salvar_1"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="16dp"
@@ -210,25 +211,7 @@
             android:src="@drawable/ic_save" />
 
         <ImageButton
-            android:id="@+id/btn_pause"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="16dp"
-            android:background="?android:selectableItemBackgroundBorderless"
-            android:contentDescription="Pausar"
-            android:src="@drawable/ic_pause" />
-
-        <ImageButton
-            android:id="@+id/btn_opcoes"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="16dp"
-            android:background="?android:selectableItemBackgroundBorderless"
-            android:contentDescription="Editar"
-            android:src="@drawable/ic_editar" />
-
-        <ImageButton
-            android:id="@+id/btn_exodia"
+            android:id="@+id/btn_exodia_1"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="16dp"
@@ -237,12 +220,11 @@
             android:src="@drawable/ic_exodia_quadrants" />
 
         <ImageButton
-            android:id="@+id/btn_crop"
+            android:id="@+id/btn_crop_1"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:selectableItemBackgroundBorderless"
             android:contentDescription="Preview"
             android:src="@drawable/ic_preview" />
-
     </LinearLayout>
 </RelativeLayout>
