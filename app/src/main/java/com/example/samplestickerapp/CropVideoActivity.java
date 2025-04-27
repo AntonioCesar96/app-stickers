@@ -19,6 +19,7 @@ import android.view.Gravity;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,6 +30,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
@@ -58,6 +60,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class CropVideoActivity extends AppCompatActivity {
     private LockableScrollView lockableScrollView;
@@ -627,6 +630,66 @@ public class CropVideoActivity extends AppCompatActivity {
             }
         }
 
+        byte[] bytes = getBytes(tempFiles.get(0));
+        WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+        boolean ehAnimado = webPImage.getFrameCount() > 1;
+
+        if ((stickerPack.animatedStickerPack && ehAnimado) ||
+                (!stickerPack.animatedStickerPack && !ehAnimado)) {
+
+            moverFigurinhasParaPasta(tempFiles, stickerPack);
+
+            return;
+        }
+
+        List<StickerPack> stickerPacks = StickerPackLoader.fetchStickerPacks(this).stream()
+                .filter(x -> x.animatedStickerPack == ehAnimado)
+                .collect(Collectors.toList());
+
+        String texto1 = ehAnimado ? "animada" : "estática";
+        String texto2 = ehAnimado ? "animadas" : "estáticas";
+
+        if (stickerPacks.isEmpty()) {
+            String msg = "Figurinhas " + texto2 + " só podem ser criadas em pacotes de figurinhas " + texto2 + ".\n\n" +
+                    "Não existem pacotes de figurinhas " + texto2 + " para você selecionar. " +
+                    "Volte à tela inicial e crie um pacote de figurinhas " + texto2 + ".";
+            AlertDialogHelper.showAlertDialog(msg, CropVideoActivity.this);
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View dialogView = inflater.inflate(R.layout.dialog_whatsapp, null);
+        Spinner spinner = dialogView.findViewById(R.id.spinnerContatos);
+
+        ContatoSpinnerAdapter adapter = new ContatoSpinnerAdapter(this, stickerPacks);
+        spinner.setAdapter(adapter);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Atenção");
+        builder.setMessage("Figurinhas " + texto2 + " só podem ser criadas em pacotes de figurinhas " + texto2 + "." +
+                "\n\nSelecione um pacote de figurinha " + texto1 + " para colocar essa figurinha.");
+        builder.setView(dialogView);
+        builder.setPositiveButton("Salvar", (dialog, which) -> {
+            StickerPack escolhido = (StickerPack) spinner.getSelectedItem();
+
+            moverFigurinhasParaPasta(tempFiles, escolhido);
+        });
+        builder.setNegativeButton("Cancelar", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            // 5. Change button colors to red
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                    .setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
+                    .setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        });
+        dialog.show();
+    }
+
+    private void moverFigurinhasParaPasta(List<File> tempFiles, StickerPack escolhido) {
         ArrayList<Sticker> stickers = new ArrayList<>();
         boolean naoDeuErro = true;
         for (int i = 0; i < tempFiles.size(); i++) {
@@ -664,7 +727,7 @@ public class CropVideoActivity extends AppCompatActivity {
             }
 
             File rootDir = Environment.getExternalStorageDirectory();
-            File outputFileInAssets = new File(rootDir, "00-Figurinhas/assets/" + stickerPack.identifier + "/"
+            File outputFileInAssets = new File(rootDir, "00-Figurinhas/assets/" + escolhido.identifier + "/"
                     + getNextStickerPrefix() + "_" + System.currentTimeMillis() + ".webp");
 
             try {
@@ -689,8 +752,12 @@ public class CropVideoActivity extends AppCompatActivity {
         }
 
         if (naoDeuErro) {
+            for (int i = 0; i < stickers.size(); i++) {
+                escolhido.getStickers().add(stickers.get(i));
+            }
+
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-            ContentsJsonHelper.stickerPackAlterado = stickerPack;
+            ContentsJsonHelper.stickerPackAlterado = escolhido;
             ContentsJsonHelper.stickersAlterados = stickers;
 
             finish();

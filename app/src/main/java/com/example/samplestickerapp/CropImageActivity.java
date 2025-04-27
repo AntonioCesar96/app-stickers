@@ -460,7 +460,7 @@ public class CropImageActivity extends AppCompatActivity {
         if ((stickerPack.animatedStickerPack && ehAnimado) ||
                 (!stickerPack.animatedStickerPack && !ehAnimado)) {
 
-            moverFigurinhasParaPasta(tempFiles, bytes, webPImage, stickerPack);
+            moverFigurinhasParaPasta(tempFiles, stickerPack);
 
             return;
         }
@@ -495,7 +495,7 @@ public class CropImageActivity extends AppCompatActivity {
         builder.setPositiveButton("Salvar", (dialog, which) -> {
             StickerPack escolhido = (StickerPack) spinner.getSelectedItem();
 
-            moverFigurinhasParaPasta(tempFiles, bytes, webPImage, escolhido);
+            moverFigurinhasParaPasta(tempFiles, escolhido);
         });
         builder.setNegativeButton("Cancelar", (dialog, which) -> {
             dialog.dismiss();
@@ -512,27 +512,26 @@ public class CropImageActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void moverFigurinhasParaPasta(List<File> tempFiles, byte[] bytes, WebPImage webPImage, StickerPack escolhido) {
+    private void moverFigurinhasParaPasta(List<File> tempFiles, StickerPack escolhido) {
         ArrayList<Sticker> stickers = new ArrayList<>();
         boolean naoDeuErro = true;
-        for (
-                int i = 0; i < tempFiles.size(); i++) {
+        for (int i = 0; i < tempFiles.size(); i++) {
             File fileTemp = tempFiles.get(i);
 
-            byte[] bytes2 = getBytes(fileTemp);
-            WebPImage webPImage2 = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
+            byte[] bytes = getBytes(fileTemp);
+            WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
 
-            if (bytes2.length > STATIC_STICKER_FILE_LIMIT_KB * KB_IN_BYTES) {
+            if (bytes.length > STATIC_STICKER_FILE_LIMIT_KB * KB_IN_BYTES) {
                 Toast.makeText(this, "figurinhas estáticas tem que ter tamanho menor q "
                         + STATIC_STICKER_FILE_LIMIT_KB + "KB, tamanho atual "
-                        + String.format(new Locale("pt", "BR"), "%.2f", (double) bytes2.length / KB_IN_BYTES) + " KB", Toast.LENGTH_SHORT).show();
+                        + String.format(new Locale("pt", "BR"), "%.2f", (double) bytes.length / KB_IN_BYTES) + " KB", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (webPImage2.getHeight() != IMAGE_HEIGHT) {
+            if (webPImage.getHeight() != IMAGE_HEIGHT) {
                 Toast.makeText(this, "a figurinha deve ter " + IMAGE_HEIGHT + " de altura,  altura atual " + webPImage.getHeight(), Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (webPImage2.getWidth() != IMAGE_WIDTH) {
+            if (webPImage.getWidth() != IMAGE_WIDTH) {
                 Toast.makeText(this, "a figurinha deve ter " + IMAGE_WIDTH + "de largura, largura atual " + webPImage.getWidth(), Toast.LENGTH_SHORT).show();
                 return;
             }
