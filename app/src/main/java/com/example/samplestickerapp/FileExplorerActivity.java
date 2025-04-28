@@ -276,11 +276,11 @@ public class FileExplorerActivity extends AppCompatActivity {
     private void extracted(Class classs) {
         String inputPath = file.getAbsolutePath();
 
-        File outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        File outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
         String outputPath = outputFile.getAbsolutePath();
         if (outputFile.exists()) {
             outputFile.delete();
-            outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+            outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
         }
 
         List<String> extensaoImagens = Arrays.asList(
@@ -300,11 +300,10 @@ public class FileExplorerActivity extends AppCompatActivity {
                     e.printStackTrace();
                 }
 
-                File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
-                File tempMp4File = new File(tempDir, "video_original_gif.mp4");
+                File tempMp4File = new File(FilesHelper.getTempDir(), "video_original_gif.mp4");
                 if (tempMp4File.exists()) {
                     tempMp4File.delete();
-                    tempMp4File = new File(tempDir, "video_original_gif.mp4");
+                    tempMp4File = new File(FilesHelper.getTempDir(), "video_original_gif.mp4");
                 }
 
                 String ffmpegCommand = "-i \"" + inputPath + "\""
@@ -412,12 +411,12 @@ public class FileExplorerActivity extends AppCompatActivity {
         progressDialog.show();
 
         new Thread(() -> {
-            File outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/frames");
+            File outputDir = new File(FilesHelper.getTempDir(), "frames");
             if (!outputDir.exists()) {
                 outputDir.mkdirs();
             } else {
                 ContentsJsonHelper.deleteRecursive(outputDir);
-                outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/frames");
+                outputDir = new File(FilesHelper.getTempDir(), "frames");
                 outputDir.mkdirs();
             }
 
@@ -425,7 +424,7 @@ public class FileExplorerActivity extends AppCompatActivity {
             Uri uri = Uri.fromFile(new File(inputFilePath));
             ImageDecodeOptions decodeOptions = ImageDecodeOptions.newBuilder()
                     .setDecodeAllFrames(true)
-                    .build();                                                      // :contentReference[oaicite:5]{index=5}
+                    .build();
 
             ImageRequest request = ImageRequestBuilder.newBuilderWithSource(uri)
                     .setImageDecodeOptions(decodeOptions)
@@ -433,7 +432,7 @@ public class FileExplorerActivity extends AppCompatActivity {
 
             // 3. Submete à pipeline e registra um subscriber
             DataSource<CloseableReference<CloseableImage>> dataSource =
-                    Fresco.getImagePipeline().fetchDecodedImage(request, /* callerContext */ null);  // :contentReference[oaicite:6]{index=6}
+                    Fresco.getImagePipeline().fetchDecodedImage(request, /* callerContext */ null);
 
             File finalOutputDir = outputDir;
             dataSource.subscribe(new BaseDataSubscriber<CloseableReference<CloseableImage>>() {
@@ -538,11 +537,10 @@ public class FileExplorerActivity extends AppCompatActivity {
     }
 
     public void generateMp4FromFrames(Context context, File frameTxtFile, Class classs, int totalDurationMs, int frameCount) {
-        File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
-        File outputFile = new File(tempDir, "video_original_webp.mp4");
+        File outputFile = new File(FilesHelper.getTempDir(), "video_original_webp.mp4");
         if (outputFile.exists()) {
             outputFile.delete();
-            outputFile = new File(tempDir, "video_original_webp.mp4");
+            outputFile = new File(FilesHelper.getTempDir(), "video_original_webp.mp4");
         }
 
         ProgressDialog progressDialog = new ProgressDialog(context);

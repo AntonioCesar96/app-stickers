@@ -102,9 +102,7 @@ public class CropImageActivity extends AppCompatActivity {
         btnSalvar.setOnClickListener(v -> enviarWhatsapp());
 
         stickerPack = getIntent().getParcelableExtra("sticker_pack");
-        //stickerPack = StickerPackLoader.fetchStickerPacks(this).get(1);
         String path = getIntent().getStringExtra("file_path");
-        //String path = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/2.jpg").getAbsolutePath();
         imageFile = new File(Objects.requireNonNull(path));
 
         if (imageFile.exists()) {
@@ -209,8 +207,7 @@ public class CropImageActivity extends AppCompatActivity {
                 int baseCropH = Math.round(r.height() * mapFactor);
 
                 if (!exodia) {
-                    File out = new File(Environment.getExternalStorageDirectory(),
-                            "00-Figurinhas/temp/output_cropped.webp");
+                    File out = new File(FilesHelper.getTempDir(), "output_cropped.webp");
                     resetProgressUI(out.getName(), attempt);
                     processQuadrant(baseCropX, baseCropY, baseCropW, baseCropH, out, this);
                 } else {
@@ -219,8 +216,7 @@ public class CropImageActivity extends AppCompatActivity {
                     for (int i = 0; i < 4; i++) {
                         int offsetX = baseCropX + (i % 2) * halfW;
                         int offsetY = baseCropY + (i / 2) * halfH;
-                        File out = new File(Environment.getExternalStorageDirectory(),
-                                String.format("00-Figurinhas/temp/output_exodia_%d.webp", i));
+                        File out = new File(FilesHelper.getTempDir(), String.format("output_exodia_%d.webp", i));
                         resetProgressUI(out.getName(), attempt);
                         processQuadrant(offsetX, offsetY, halfW, halfH, out, this);
                     }
@@ -357,8 +353,7 @@ public class CropImageActivity extends AppCompatActivity {
             SimpleDraweeView simpleDraweeView = findViewById(R.id.output_cropped_webp_s);
             ProgressBar progressBar = findViewById(R.id.output_cropped_webp_l);
 
-            setupController(simpleDraweeView, new File(Environment.getExternalStorageDirectory(),
-                    "00-Figurinhas/temp/output_cropped.webp"));
+            setupController(simpleDraweeView, new File(FilesHelper.getTempDir(), "output_cropped.webp"));
 
             simpleDraweeView.setOnClickListener(view2 ->
                     Toast.makeText(this, webpInfos, Toast.LENGTH_SHORT).show());
@@ -374,8 +369,7 @@ public class CropImageActivity extends AppCompatActivity {
                 SimpleDraweeView simpleDraweeView = findViewById(simpleDraweeViewId);
                 ProgressBar progressBar = findViewById(progressBarId);
 
-                setupController(simpleDraweeView, new File(Environment.getExternalStorageDirectory(),
-                        "00-Figurinhas/temp/" + cs.nomeArquivo));
+                setupController(simpleDraweeView, new File(FilesHelper.getTempDir(), cs.nomeArquivo));
 
                 simpleDraweeView.setOnClickListener(view2 ->
                         Toast.makeText(this, cs.webpInfos, Toast.LENGTH_SHORT).show()
@@ -436,13 +430,11 @@ public class CropImageActivity extends AppCompatActivity {
 
         // Cria lista de arquivos temporários (1 ou 4) para envio
         List<File> tempFiles = new ArrayList<>();
-        File baseDir = Environment.getExternalStorageDirectory();
-        String tempPath = baseDir + "/00-Figurinhas/temp/";
         if (!exodia) {
-            tempFiles.add(new File(tempPath + "output_cropped.webp"));
+            tempFiles.add(new File(FilesHelper.getTempDir(), "output_cropped.webp"));
         } else {
             for (int i = 0; i < 4; i++) {
-                tempFiles.add(new File(tempPath + String.format("output_exodia_%d.webp", i)));
+                tempFiles.add(new File(FilesHelper.getTempDir(), String.format("output_exodia_%d.webp", i)));
             }
         }
 
@@ -536,8 +528,7 @@ public class CropImageActivity extends AppCompatActivity {
                 return;
             }
 
-            File rootDir = Environment.getExternalStorageDirectory();
-            File outputFileInAssets = new File(rootDir, "00-Figurinhas/assets/" + escolhido.identifier + "/"
+            File outputFileInAssets = new File(FilesHelper.getAssetsDir(), escolhido.identifier + "/"
                     + getNextStickerPrefix() + "_" + System.currentTimeMillis() + ".webp");
 
             try {
@@ -575,8 +566,7 @@ public class CropImageActivity extends AppCompatActivity {
     }
 
     public String getNextStickerPrefix() {
-        File rootDir = Environment.getExternalStorageDirectory();
-        File stickerPackDir = new File(rootDir, "00-Figurinhas/assets/" + stickerPack.identifier);
+        File stickerPackDir = new File(FilesHelper.getAssetsDir(), stickerPack.identifier);
         File[] files = stickerPackDir.listFiles((dir, name) -> name.endsWith(".webp") && name.contains("_"));
         List<Integer> numbers = new ArrayList<>();
 

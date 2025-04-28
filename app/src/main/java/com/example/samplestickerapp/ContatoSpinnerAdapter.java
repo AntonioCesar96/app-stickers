@@ -48,8 +48,7 @@ public class ContatoSpinnerAdapter extends ArrayAdapter<StickerPack> {
         if (item != null) {
             tvNome.setText(item.name);
 
-            String imagePath = new File(Environment.getExternalStorageDirectory(),
-                    "00-Figurinhas/assets/" + item.identifier + "/icone.png").getAbsolutePath();
+            String imagePath = new File(FilesHelper.getAssetsDir(), item.identifier + "/icone.png").getAbsolutePath();
             Bitmap bmp = BitmapFactory.decodeFile(imagePath);
             ivThumb.setImageBitmap(bmp);
         }

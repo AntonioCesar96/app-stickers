@@ -256,11 +256,11 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
         String inputPath = videoFile.getAbsolutePath();
 
         // Video ja vem reduzido
-        File outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+        File outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
         String outputPath = outputFile.getAbsolutePath();
         if (outputFile.exists()) {
             outputFile.delete();
-            outputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
+            outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
         }
 
         // Recupera dimensões originais
@@ -325,14 +325,13 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     }
 
     private void trimVideoWithFFmpegKit() {
-        // File inputFile = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_reduzido.mp4");
         String inputPath = videoFile.getAbsolutePath();
 
-        File outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_trimmed.mp4");
+        File outputDir = new File(FilesHelper.getTempDir(), "video_original_trimmed.mp4");
         String outputPath = outputDir.getAbsolutePath();
         if (outputDir.exists()) {
             outputDir.delete();
-            outputDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp/video_original_trimmed.mp4");
+            outputDir = new File(FilesHelper.getTempDir(), "video_original_trimmed.mp4");
         }
 
         // 3. Converte milissegundos para segundos com precisão de três casas decimais

@@ -55,7 +55,7 @@ public class SplashActivity extends BaseActivity {
 
     private void criarPastasIniciais() {
         try {
-            File figurinhasDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas");
+            File figurinhasDir = FilesHelper.getFigurinhaDir();
             if (!figurinhasDir.exists())
                 figurinhasDir.mkdirs();
 
@@ -92,7 +92,7 @@ public class SplashActivity extends BaseActivity {
     }
 
     private void copyAssetsRecursively(String path, AssetManager assetManager) throws IOException {
-        File assetsDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/assets");
+        File assetsDir = FilesHelper.getAssetsDir();
         String[] pacoteArquivos = assetManager.list(path);
         File pacoteDir = new File(assetsDir, path);
         pacoteDir.mkdirs();

@@ -164,10 +164,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     }
 
     private void limparTemp() {
-        File tempDir = new File(Environment.getExternalStorageDirectory(), "00-Figurinhas/temp");
-        ContentsJsonHelper.deleteRecursive(tempDir);
-        if (!tempDir.exists())
-            tempDir.mkdirs();
+        ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
+        if (!FilesHelper.getTempDir().exists())
+            FilesHelper.getTempDir().mkdirs();
     }
 
     @Override
@@ -429,10 +428,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     }
 
     private void adicionarPacoteNoWhats(View v) {
-        File dir = new File(
-                Environment.getExternalStorageDirectory(),
-                "00-Figurinhas/assets/" + stickerPack.identifier
-        );
+        File dir = new File(FilesHelper.getAssetsDir(), stickerPack.identifier);
 
         File[] webps = dir.listFiles((file, name) ->
                 name.toLowerCase(Locale.US).endsWith(".webp")

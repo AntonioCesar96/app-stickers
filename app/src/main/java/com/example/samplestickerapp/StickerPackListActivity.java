@@ -8,6 +8,8 @@
 
 package com.example.samplestickerapp;
 
+import static com.example.samplestickerapp.PickMediaHelper.REQUEST_PICK_MEDIA;
+
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -184,8 +186,7 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                 try {
                     String pastaDefault = animatedStickerPack ? "Pacote 1" : "Pacote 2";
 
-                    File rootDir = Environment.getExternalStorageDirectory();
-                    File stickerDir = new File(rootDir, "00-Figurinhas/assets/" + nome);
+                    File stickerDir = new File(FilesHelper.getAssetsDir(), nome);
                     stickerDir.mkdirs();
 
                     String[] pacoteArquivos = getAssets().list(pastaDefault);
@@ -325,5 +326,12 @@ public class StickerPackListActivity extends AddStickerPackActivity {
             int minMarginBetweenImages = (widthOfImageRow - maxNumberOfImagesInARow * previewSize) / (maxNumberOfImagesInARow - 1);
             allStickerPacksListAdapter.setImageRowSpec(maxNumberOfImagesInARow, minMarginBetweenImages);
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        PickMediaHelper.onActivityResult(this, requestCode, resultCode, data);
     }
 }

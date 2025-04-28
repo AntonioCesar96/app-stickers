@@ -121,12 +121,11 @@ public class ContentsJsonHelper {
 
     @NonNull
     private static File getAssetsDir() {
-        File rootDir = Environment.getExternalStorageDirectory();
-        File figurinhasDir = new File(rootDir, "00-Figurinhas");
+        File figurinhasDir = FilesHelper.getFigurinhaDir();
         if (!figurinhasDir.exists()) {
             figurinhasDir.mkdirs();
         }
-        File assetsDir = new File(figurinhasDir, "assets");
+        File assetsDir = FilesHelper.getAssetsDir();
         if (!assetsDir.exists()) {
             assetsDir.mkdirs();
         }

@@ -182,7 +182,7 @@ public class StickerContentProvider extends ContentProvider {
 
     @NonNull
     private static File getContentsJsonFile() {
-        File rootDir = Environment.getExternalStorageDirectory();
+        File rootDir = FilesHelper.getRootDir();
         File file = new File(rootDir, STICKERS_FOLDER_EXTERNAL_STORAGE + CONTENT_FILE_NAME);
         return file;
     }
@@ -295,7 +295,7 @@ public class StickerContentProvider extends ContentProvider {
 
     private AssetFileDescriptor fetchFile(@NonNull Uri uri, @NonNull AssetManager am, @NonNull String fileName, @NonNull String identifier) {
         try {
-            File rootDir = Environment.getExternalStorageDirectory();
+            File rootDir = FilesHelper.getRootDir();
             File file = new File(rootDir, STICKERS_FOLDER_EXTERNAL_STORAGE + identifier + "/" + fileName);
 
             return new AssetFileDescriptor(ParcelFileDescriptor.open(file,
