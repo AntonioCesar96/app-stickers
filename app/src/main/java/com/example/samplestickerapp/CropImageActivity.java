@@ -382,7 +382,7 @@ public class CropImageActivity extends AppCompatActivity {
 
         mostrarVideo();
 
-        if ((exodia && controleStickers.size() == 4) || (!exodia && controleStickers.size() == 1)) {
+        if ((exodia && controleStickers.size() >= 3) || (!exodia && controleStickers.size() == 1)) {
             runOnUiThread(() -> {
                 progressDialog.dismiss();
             });

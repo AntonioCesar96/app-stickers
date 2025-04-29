@@ -16,7 +16,6 @@ public class FilesHelper {
         context = c;
     }
 
-    // TODO: Alterar para os frames e os webp temporarios serem criados na pasta privada, os oficiais na pasta no SD
     public static File getRootDir() {
         return Environment.getExternalStorageDirectory();
     }

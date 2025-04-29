@@ -23,13 +23,15 @@ public class PickMediaHelper {
         ((AppCompatActivity) context).startActivityForResult(intent, REQUEST_PICK_MEDIA);
     }
 
-    public static void onActivityResult(Context context, int requestCode, int resultCode, Intent data) {
+    public static File onActivityResult(Context context, int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_PICK_MEDIA && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) {
                 String displayName = GetAbsolutePathFromUri.getPath(context, uri);
-                Toast.makeText(context, "Arquivo: " + displayName, Toast.LENGTH_LONG).show();
+                return new File(displayName);
             }
         }
+
+        return null;
     }
 }

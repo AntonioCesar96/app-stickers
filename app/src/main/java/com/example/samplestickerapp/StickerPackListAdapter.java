@@ -129,14 +129,11 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
     private void setAddButtonAppearance(ImageView addButton, StickerPack pack) {
         addButton.setImageResource(R.drawable.sticker_3rdparty_add);
         addButton.setOnClickListener(v -> {
-            if (!pack.animatedStickerPack) {
-                PickMediaHelper.open(addButton.getContext());
-                return;
-            }
-            
-            Intent intent = new Intent(addButton.getContext(), FileExplorerActivity.class);
-            intent.putExtra("sticker_pack", pack);
-            addButton.getContext().startActivity(intent);
+            onAddButtonClickedListener.onAddButtonClicked(pack);
+
+//            Intent intent = new Intent(addButton.getContext(), FileExplorerActivity.class);
+//            intent.putExtra("sticker_pack", pack);
+//            addButton.getContext().startActivity(intent);
         });
         TypedValue outValue = new TypedValue();
         addButton.getContext().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);

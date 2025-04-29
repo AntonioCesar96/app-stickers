@@ -20,11 +20,15 @@ import android.os.Environment;
 import android.text.InputType;
 import android.util.Log;
 import android.util.Pair;
+import android.view.ContextMenu;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -47,12 +51,17 @@ import java.util.Optional;
 
 
 public class StickerPackListActivity extends AddStickerPackActivity {
+    private static final int MENU_TRIM = 1;
+    private static final int MENU_CROP = 2;
     public static final String EXTRA_STICKER_PACK_LIST_DATA = "sticker_pack_list";
     private static final int STICKER_PREVIEW_DISPLAY_LIMIT = 5;
     private LinearLayoutManager packLayoutManager;
     private RecyclerView packRecyclerView;
     private StickerPackListAdapter allStickerPacksListAdapter;
     private ArrayList<StickerPack> stickerPackList;
+    private View contextMenuAnchor;
+    private File file;
+    private StickerPack stickerPackSelecionado;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,8 +71,18 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         stickerPackList = getIntent().getParcelableArrayListExtra(EXTRA_STICKER_PACK_LIST_DATA);
         showStickerPackList(stickerPackList);
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle(getResources().getQuantityString(R.plurals.title_activity_sticker_packs_list, stickerPackList.size()));
+            getSupportActionBar().setTitle("Pacotes");
         }
+
+        // 1) Cria âncora invisível e centraliza:
+        FrameLayout root = findViewById(android.R.id.content);
+        contextMenuAnchor = new View(this);
+        contextMenuAnchor.setId(View.generateViewId());
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                0, 0, Gravity.CENTER
+        );
+        root.addView(contextMenuAnchor, lp);
+        registerForContextMenu(contextMenuAnchor);
     }
 
     @Override
@@ -220,21 +239,6 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         dialog.show();
     }
 
-    private void copiarArquivo(File origem, File destino) {
-        try (InputStream in = new FileInputStream(origem);
-             OutputStream out = new FileOutputStream(destino)) {
-
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = in.read(buffer)) > 0) {
-                out.write(buffer, 0, length);
-            }
-        } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), Toast.LENGTH_LONG).show();
-            e.printStackTrace();
-        }
-    }
-
     public void recarregarListagem() {
         new Thread(() -> {
             Pair<String, ArrayList<StickerPack>> result;
@@ -312,7 +316,16 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     }
 
     private final StickerPackListAdapter.OnAddButtonClickedListener onAddButtonClickedListener = pack -> {
-        addStickerPackToWhatsApp(pack.identifier, pack.name);
+        if ((pack.getStickers().size() + 1) > 30) {
+            Toast.makeText(StickerPackListActivity.this,
+                    "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                            "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
+                            + (pack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        this.stickerPackSelecionado = pack;
+        PickMediaHelper.open(StickerPackListActivity.this);
     };
 
     private void recalculateColumnCount() {
@@ -332,6 +345,58 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        PickMediaHelper.onActivityResult(this, requestCode, resultCode, data);
+        File file = PickMediaHelper.onActivityResult(this, requestCode, resultCode, data);
+        if (file != null) {
+            onItemClick(file);
+        }
+    }
+
+    private void onItemClick(File file) {
+        String name = file.getName().toLowerCase();
+
+        // TODO: quando .webp avaliar se é estatico ou nao para saber qual tela abrir
+        List<String> extensaoVideos = Arrays.asList(
+                ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts", ".gif", ".webp");
+        if (extensaoVideos.stream().anyMatch(name::endsWith)) {
+            this.file = file;
+            openContextMenu(contextMenuAnchor);
+            return;
+        }
+
+        List<String> extensaoImagens = Arrays.asList(
+                ".jpg", ".jpeg", ".png", ".bmp", ".svg");
+        if (extensaoImagens.stream().anyMatch(name::endsWith)) {
+            this.file = file;
+            Intent intent = new Intent(this, CropImageActivity.class);
+            intent.putExtra("sticker_pack", stickerPackSelecionado);
+            intent.putExtra("file_path", file.getAbsolutePath());
+            startActivity(intent);
+            return;
+        }
+
+        Toast.makeText(this, "Não é possível criar uma figurinha a partir desse arquivo", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        menu.setHeaderTitle("Opções");
+        menu.add(0, MENU_TRIM, 0, "Aparar(Trim)");
+        menu.add(0, MENU_CROP, 1, "Cortar(Crop)");
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPackSelecionado);
+        switch (item.getItemId()) {
+            case MENU_TRIM:
+                fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
+                return true;
+            case MENU_CROP:
+                fileExplorerHelper.extracted(file, CropVideoActivity.class);
+                return true;
+            default:
+                return super.onContextItemSelected(item);
+        }
     }
 }

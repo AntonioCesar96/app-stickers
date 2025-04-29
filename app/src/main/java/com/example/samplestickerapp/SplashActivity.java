@@ -57,6 +57,8 @@ public class SplashActivity extends BaseActivity {
 
     private void criarPastasIniciais() {
         try {
+            //ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
+
             File figurinhasDir = FilesHelper.getFigurinhaDir();
             if (!figurinhasDir.exists())
                 figurinhasDir.mkdirs();
@@ -67,7 +69,6 @@ public class SplashActivity extends BaseActivity {
                 copyAssetsRecursively("Pacote 2", getAssets());
                 copyAssetsRecursively("Pacote 1", getAssets());
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }

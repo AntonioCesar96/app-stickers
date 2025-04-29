@@ -21,12 +21,15 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.util.Patterns;
+import android.view.ContextMenu;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -58,6 +61,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 
 import okhttp3.OkHttpClient;
@@ -66,6 +70,9 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 public class StickerPackDetailsActivity extends AddStickerPackActivity {
+    private static final int MENU_TRIM = 1;
+    private static final int MENU_CROP = 2;
+    private View contextMenuAnchor;
 
     /**
      * Do not change below values of below 3 lines as this is also used by WhatsApp
@@ -89,6 +96,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private View addButton;
     private View alreadyAddedText;
     private StickerPack stickerPack;
+    private File file;
     private View divider;
     private TextView packSizeTextView;
     private SimpleDraweeView expandedStickerView;
@@ -131,9 +139,17 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         }
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
 
-        limparTemp();
-
         addButton.setOnClickListener(v -> adicionarPacoteNoWhats(v));
+
+        // 1) Cria âncora invisível e centraliza:
+        FrameLayout root = findViewById(android.R.id.content);
+        contextMenuAnchor = new View(this);
+        contextMenuAnchor.setId(View.generateViewId());
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                0, 0, Gravity.CENTER
+        );
+        root.addView(contextMenuAnchor, lp);
+        registerForContextMenu(contextMenuAnchor);
     }
 
     private StickerPreviewAdapter.OnUpdateSizeListener getOnUpdateSizeListener() {
@@ -161,12 +177,6 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 }
             }
         };
-    }
-
-    private void limparTemp() {
-        ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
-        if (!FilesHelper.getTempDir().exists())
-            FilesHelper.getTempDir().mkdirs();
     }
 
     @Override
@@ -310,9 +320,11 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 return true;
             }
 
-            Intent intent = new Intent(this, FileExplorerActivity.class);
-            intent.putExtra("sticker_pack", stickerPack);
-            startActivity(intent);
+            PickMediaHelper.open(StickerPackDetailsActivity.this);
+
+//            Intent intent = new Intent(this, FileExplorerActivity.class);
+//            intent.putExtra("sticker_pack", stickerPack);
+//            startActivity(intent);
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -520,4 +532,63 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             }
         }
     };
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        File file = PickMediaHelper.onActivityResult(this, requestCode, resultCode, data);
+        if (file != null) {
+            onItemClick(file);
+        }
+    }
+
+    private void onItemClick(File file) {
+        String name = file.getName().toLowerCase();
+
+        // TODO: quando .webp avaliar se é estatico ou nao para saber qual tela abrir
+        List<String> extensaoVideos = Arrays.asList(
+                ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts", ".gif", ".webp");
+        if (extensaoVideos.stream().anyMatch(name::endsWith)) {
+            this.file = file;
+            openContextMenu(contextMenuAnchor);
+            return;
+        }
+
+        List<String> extensaoImagens = Arrays.asList(
+                ".jpg", ".jpeg", ".png", ".bmp", ".svg");
+        if (extensaoImagens.stream().anyMatch(name::endsWith)) {
+            this.file = file;
+            Intent intent = new Intent(this, CropImageActivity.class);
+            intent.putExtra("sticker_pack", stickerPack);
+            intent.putExtra("file_path", file.getAbsolutePath());
+            startActivity(intent);
+            return;
+        }
+
+        Toast.makeText(this, "Não é possível criar uma figurinha a partir desse arquivo", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        menu.setHeaderTitle("Opções");
+        menu.add(0, MENU_TRIM, 0, "Aparar(Trim)");
+        menu.add(0, MENU_CROP, 1, "Cortar(Crop)");
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPack);
+        switch (item.getItemId()) {
+            case MENU_TRIM:
+                fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
+                return true;
+            case MENU_CROP:
+                fileExplorerHelper.extracted(file, CropVideoActivity.class);
+                return true;
+            default:
+                return super.onContextItemSelected(item);
+        }
+    }
 }
