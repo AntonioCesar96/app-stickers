@@ -33,6 +33,8 @@ public class SplashActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
+        FilesHelper.setContext(getBaseContext());
+
         btnPermissao = findViewById(R.id.btnPermissao);
 
         btnPermissao.setOnClickListener(view -> {
@@ -58,10 +60,6 @@ public class SplashActivity extends BaseActivity {
             File figurinhasDir = FilesHelper.getFigurinhaDir();
             if (!figurinhasDir.exists())
                 figurinhasDir.mkdirs();
-
-            File tempDir = new File(figurinhasDir, "temp");
-            if (!tempDir.exists())
-                tempDir.mkdirs();
 
             File assetsDir = new File(figurinhasDir, "assets");
             if (!assetsDir.exists()) {
