@@ -3,27 +3,20 @@ package com.example.samplestickerapp;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Movie;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
-import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
-import android.view.ContextMenu;
-import android.view.Gravity;
-import android.view.MenuItem;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
 import com.arthenica.ffmpegkit.ReturnCode;
@@ -47,11 +40,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 public class FileExplorerHelper {
 
@@ -64,13 +55,78 @@ public class FileExplorerHelper {
     }
 
     public void extracted(File file, Class classs) {
+        LayoutInflater inflater = LayoutInflater.from(activity);
+        View dialogView = inflater.inflate(R.layout.dialog_with_spinner, null);
+
+        Spinner spinner = dialogView.findViewById(R.id.dialog_spinner);
+
+        Integer[] options = {512, 450, 400, 350, 300, 250, 200, 150, 100, 50};
+        ArrayAdapter<Integer> adapter = new ArrayAdapter<>(
+                activity,
+                android.R.layout.simple_spinner_item,
+                options
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(activity)
+                .setTitle("")
+                .setView(dialogView)
+                .setPositiveButton("Processar", (dialogInterface, which) -> {
+
+                    Integer resolucao = (Integer) spinner.getSelectedItem();
+
+                    extractedComResolucao(file, classs, resolucao);
+                })
+                .setNegativeButton("Fechar", (dialogInterface, which) -> {
+                    dialogInterface.dismiss();
+                })
+                .create();
+
+        dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.BLACK);
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.BLACK);
+    }
+
+    private void extractedComResolucao(File file, Class classs, Integer resolucao) {
         String inputPath = file.getAbsolutePath();
 
         String[] split = inputPath.split("/");
-        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + ".mp4";
+        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + ".mp4";
 
-        // TODO: Hoje quando abre o aplicativo ele limpa a tmep, sera que vira? acho q sim
-        File outputFile = new File(FilesHelper.getTempDir(), nomeArquivoOriginalTemp);
+        File outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
+        String outputPath = outputFile.getAbsolutePath();
+        if (outputFile.exists()) {
+            try {
+                MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                retriever.setDataSource(outputPath);
+                long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                retriever.release();
+
+                AlertDialogHelper.showAlertDialog(activity, "",
+                        "Temos esse video já processado, deseja reutiliza-lo ou processa-lo novamente?", "Reutilizar", "Processar",
+                        () -> {
+                            processar(file, classs, resolucao);
+                        }, () -> {
+                            outputFile.delete();
+                            processar(file, classs, resolucao);
+                        });
+                return;
+            } catch (Exception e) {
+            }
+        }
+
+        processar(file, classs, resolucao);
+    }
+
+    private void processar(File file, Class classs, Integer resolucao) {
+        String inputPath = file.getAbsolutePath();
+
+        String[] split = inputPath.split("/");
+        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + ".mp4";
+
+        File outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         String outputPath = outputFile.getAbsolutePath();
         if (outputFile.exists()) {
             try {
@@ -89,7 +145,7 @@ public class FileExplorerHelper {
                 return;
             } catch (Exception e) {
                 outputFile.delete();
-                outputFile = new File(FilesHelper.getTempDir(), nomeArquivoOriginalTemp);
+                outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
             }
         }
 
@@ -110,7 +166,7 @@ public class FileExplorerHelper {
                     e.printStackTrace();
                 }
 
-                File tempMp4File = new File(FilesHelper.getTempDir(), nomeArquivoOriginalTemp);
+                File tempMp4File = new File(FilesHelper.getMp4Dir(), split[split.length - 1].replace(".", "_") + "_gif.mp4");
 
                 String ffmpegCommand = "-i \"" + inputPath + "\""
                         + " -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\""
@@ -157,7 +213,7 @@ public class FileExplorerHelper {
             retriever.release();
         }
 
-        String videoFilter = "-vf \"scale=512:-2,fps=24\"";
+        String videoFilter = "-vf \"scale=" + resolucao + ":-2,fps=24\"";
 
         // Prepare FFmpeg command
         String ffmpegCommand = String.format(Locale.US,
@@ -349,7 +405,7 @@ public class FileExplorerHelper {
 
     public void generateMp4FromFrames(String nomeArquivoOriginalTemp, Context context,
                                       File frameTxtFile, Class classs, int totalDurationMs, int frameCount) {
-        File outputFile = new File(FilesHelper.getTempDir(), nomeArquivoOriginalTemp);
+        File outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
 
         ProgressDialog progressDialog = new ProgressDialog(context);
         progressDialog.setTitle("Processando o vídeo");

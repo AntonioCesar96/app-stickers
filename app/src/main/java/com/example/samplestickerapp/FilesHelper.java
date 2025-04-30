@@ -40,4 +40,11 @@ public class FilesHelper {
 
         return file;
     }
+
+    public static File getMp4Dir() {
+        File file = new File(context.getCacheDir(), "mp4");
+        if (!file.exists()) file.mkdirs();
+
+        return file;
+    }
 }

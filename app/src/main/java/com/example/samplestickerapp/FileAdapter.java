@@ -1,9 +1,11 @@
 package com.example.samplestickerapp;
 
 import android.graphics.Bitmap;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.os.Build;
 import android.provider.MediaStore;
+import android.text.format.Formatter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,10 +15,14 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.function.Consumer;
 
 public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
@@ -52,7 +58,46 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
         h.container.setOnClickListener(v -> onClickListener.onClickListener(file));
 
-        h.name.setText(file.getName());
+        try {
+            String nome = file.getName().split("\\.")[0]
+                    .replace("mp4_", "").replace("_", " ");
+            h.name.setText(nome);
+        } catch (Exception e) {
+            h.name.setText(file.getName());
+        }
+        try {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(file.getAbsolutePath());
+            long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+            h.textDuracao.setText((durationMs / 1000) + "s");
+
+            String sizeStr = Formatter.formatShortFileSize(h.container.getContext(), file.length());
+            h.textSize.setText(sizeStr);
+
+            String mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
+            String formatStr = mime != null && mime.contains("/") ? mime.substring(mime.indexOf('/') + 1).toUpperCase() : "N/A";
+            h.textFormat.setText(formatStr);
+            //h.textFormat.setVisibility(View.GONE);
+
+            String width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+            String height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+            h.textResolucao.setText(width + "×" + height);
+
+            String isoDate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
+            if (isoDate != null) {
+                SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+                parser.setTimeZone(TimeZone.getTimeZone("GMT"));
+                Date date = parser.parse(isoDate);
+                String dateStr = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date);
+                h.textDate.setText(dateStr);
+            } else {
+                h.textDate.setText("—");
+            }
+            retriever.release();
+
+            return;
+        } catch (Exception e) {
+        }
 
         if (file.isDirectory()) {
             h.thumb.setImageResource(R.drawable.folder_xml);
@@ -124,12 +169,22 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         View container;
         ImageView thumb;
         TextView name;
+        TextView textSize;
+        TextView textFormat;
+        TextView textResolucao;
+        TextView textDate;
+        TextView textDuracao;
 
         ViewHolder(View itemView) {
             super(itemView);
             container = itemView;
             thumb = itemView.findViewById(R.id.image_thumbnail);
             name = itemView.findViewById(R.id.text_filename);
+            textSize = itemView.findViewById(R.id.text_size);
+            textFormat = itemView.findViewById(R.id.text_format);
+            textResolucao = itemView.findViewById(R.id.text_resolucao);
+            textDate = itemView.findViewById(R.id.text_date);
+            textDuracao = itemView.findViewById(R.id.text_duracao);
         }
 
         void bind(File file) {

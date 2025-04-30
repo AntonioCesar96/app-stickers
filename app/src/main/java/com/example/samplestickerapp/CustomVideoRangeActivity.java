@@ -251,87 +251,16 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
         return String.format("%02d:%02d", minutes, seconds);
     }
 
-
-    private void initializeWithResize() {
-        String inputPath = videoFile.getAbsolutePath();
-
-        // Video ja vem reduzido
-        File outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
-        String outputPath = outputFile.getAbsolutePath();
-        if (outputFile.exists()) {
-            outputFile.delete();
-            outputFile = new File(FilesHelper.getTempDir(), "video_original_reduzido.mp4");
-        }
-
-        // Recupera dimensões originais
-        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-        retriever.setDataSource(inputPath);
-        int width = Integer.parseInt(
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-        int height = Integer.parseInt(
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-        long durationMs = Long.parseLong(
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-        retriever.release();
-
-        // Build scale filter if needed
-        String videoFilter = "";
-        if (width > 512) {
-            videoFilter = "-vf \"scale=512:-2,fps=20\"";
-        } else {
-            videoFilter = "-vf \"fps=20\"";
-        }
-
-        // Prepare FFmpeg command
-        String ffmpegCommand = String.format(Locale.US,
-                "-y -i \"%s\" %s -c:v libx264 -preset veryslow -b:v 500k -crf 28 -an \"%s\"",
-                inputPath, videoFilter, outputPath
-        );
-
-        // Show non-cancelable progress dialog
-        ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("Processing Video");
-        progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        progressDialog.setIndeterminate(false);
-        progressDialog.setMax(100);
-        progressDialog.setCancelable(false);
-        progressDialog.show();
-
-        // Execute FFmpegKit asynchronously with progress callback
-        FFmpegKit.executeAsync(ffmpegCommand,
-                session -> {
-                    // Dismiss dialog and handle completion on UI thread
-                    runOnUiThread(() -> {
-                        progressDialog.dismiss();
-                        if (ReturnCode.isSuccess(session.getReturnCode())) {
-                            initializePlayer();
-                        } else {
-                            Toast.makeText(this,
-                                    "Falha ao processar vídeo. Veja o log para detalhes.",
-                                    Toast.LENGTH_LONG).show();
-                            Log.e("FFmpegKit",
-                                    session.getAllLogsAsString());
-                        }
-                    });
-                },
-                session -> { /* no-op log callback */ },
-                statistics -> {
-                    // Update progress
-                    double timeMs = statistics.getTime();
-                    int percent = (int) ((timeMs / (float) durationMs) * 100);
-                    runOnUiThread(() -> progressDialog.setProgress(percent));
-                }
-        );
-    }
-
     private void trimVideoWithFFmpegKit() {
         String inputPath = videoFile.getAbsolutePath();
+        String[] split = inputPath.split("/");
+        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_cortado.mp4";
 
-        File outputDir = new File(FilesHelper.getTempDir(), "video_original_trimmed.mp4");
+        File outputDir = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         String outputPath = outputDir.getAbsolutePath();
         if (outputDir.exists()) {
             outputDir.delete();
-            outputDir = new File(FilesHelper.getTempDir(), "video_original_trimmed.mp4");
+            outputDir = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         }
 
         // 3. Converte milissegundos para segundos com precisão de três casas decimais

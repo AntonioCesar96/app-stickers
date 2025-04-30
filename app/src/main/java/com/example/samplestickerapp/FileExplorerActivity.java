@@ -105,32 +105,10 @@ public class FileExplorerActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(new FileAdapter(new ArrayList<>(), this::onItemClick));
 
-        // Inicializa SharedPreferences
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        // Define o diretório raiz
-        rootDir = Environment.getExternalStorageDirectory();
-        if (abrirDownload) {
-            File startDir = new File(rootDir, "Download");
-            loadDirectory(startDir);
-            return;
-        }
-
-        // Tenta recuperar o último diretório aberto
-        String lastPath = prefs.getString(KEY_LAST_DIR, null);
-        File startDir = null;
-        if (lastPath != null) {
-            File saved = new File(lastPath);
-            if (saved.exists() && saved.isDirectory()) {
-                startDir = saved;
-            }
-        }
-        if (startDir == null) {
-            startDir = rootDir;
-        }
-
-        // Carrega o diretório inicial
-        loadDirectory(startDir);
+        rootDir = FilesHelper.getMp4Dir();
+        loadDirectory(rootDir);
     }
 
     private void loadDirectory(File dir) {
@@ -163,35 +141,11 @@ public class FileExplorerActivity extends AppCompatActivity {
 
     private void updateBreadcrumbs() {
         breadcrumbLayout.removeAllViews();
-        String rootPath = rootDir.getAbsolutePath();
-        String path = currentDir.getAbsolutePath();
-        String[] segments = path.split("/");
-        StringBuilder acc = new StringBuilder();
 
-        for (String segment : segments) {
-            if (segment.isEmpty()) continue;
-            acc.append("/").append(segment);
-            final File segDir = new File(acc.toString());
-
-            TextView tv = new TextView(this);
-            tv.setText(segment);
-            tv.setPadding(8, 0, 8, 0);
-            tv.setOnClickListener(v -> {
-                if (segDir.getAbsolutePath().startsWith(rootPath)) {
-                    loadDirectory(segDir);
-                } else {
-                    loadDirectory(Environment.getExternalStorageDirectory());
-                }
-            });
-            breadcrumbLayout.addView(tv);
-
-            if (!acc.toString().equals(path)) {
-                TextView sep = new TextView(this);
-                sep.setText("›");
-                sep.setPadding(4, 0, 4, 0);
-                breadcrumbLayout.addView(sep);
-            }
-        }
+        TextView sep = new TextView(this);
+        sep.setText("Vídeos já usados por esse aplicativo");
+        sep.setPadding(4, 0, 4, 0);
+        breadcrumbLayout.addView(sep);
     }
 
     @Override

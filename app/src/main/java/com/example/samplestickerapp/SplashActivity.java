@@ -57,7 +57,7 @@ public class SplashActivity extends BaseActivity {
 
     private void criarPastasIniciais() {
         try {
-            //ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
+            ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
 
             File figurinhasDir = FilesHelper.getFigurinhaDir();
             if (!figurinhasDir.exists())

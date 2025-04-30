@@ -376,12 +376,12 @@ public class CropVideoActivity extends AppCompatActivity {
                     });
                 } else {
                     if (attempt == 1 && (size - (700 * 1024)) > MAX_SIZE) {
-                        ctx.quality = 50;
+                        ctx.quality = 60;
                         ctx.fps = 16;
                         ctx.runAttempt();
                         return;
                     }
-                    if (ctx.quality > 40) ctx.quality = Math.max(0, ctx.quality - 10);
+                    if (ctx.quality > 60) ctx.quality = Math.max(60, ctx.quality - 10);
                     if (ctx.fps > 15) ctx.fps = Math.max(15, ctx.fps - 2);
                     else if (ctx.fps > 1) ctx.fps--;
                     ctx.runAttempt();

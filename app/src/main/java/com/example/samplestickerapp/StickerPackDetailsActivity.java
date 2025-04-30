@@ -238,6 +238,18 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             adapter.handleDelete(this);
             return true;
         }
+        if (item.getItemId() == R.id.action_add && stickerPack != null) {
+            if ((stickerPack.getStickers().size() + 1) > 30) {
+                Toast.makeText(StickerPackDetailsActivity.this,
+                        "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
+                                "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
+                                + (stickerPack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
+                return true;
+            }
+
+            PickMediaHelper.open(StickerPackDetailsActivity.this);
+            return true;
+        }
         if (item.getItemId() == R.id.action_adicionar_novo && stickerPack != null) {
             if ((stickerPack.getStickers().size() + 1) > 30) {
                 Toast.makeText(StickerPackDetailsActivity.this,
@@ -312,19 +324,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         }
 
         if (item.getItemId() == R.id.action_listar_diretorio && stickerPack != null) {
-            if ((stickerPack.getStickers().size() + 1) > 30) {
-                Toast.makeText(StickerPackDetailsActivity.this,
-                        "Não é possível adicionar mais 1 figurinha nesse pacote, pois em um pacote é permitido " +
-                                "30 figurinhas, se gerarmos mais 1 nesse pacote ele ficará com "
-                                + (stickerPack.getStickers().size() + 1) + " figurinhas", Toast.LENGTH_LONG).show();
-                return true;
-            }
-
-            PickMediaHelper.open(StickerPackDetailsActivity.this);
-
-//            Intent intent = new Intent(this, FileExplorerActivity.class);
-//            intent.putExtra("sticker_pack", stickerPack);
-//            startActivity(intent);
+            Intent intent = new Intent(this, FileExplorerActivity.class);
+            intent.putExtra("sticker_pack", stickerPack);
+            startActivity(intent);
             return true;
         }
         return super.onOptionsItemSelected(item);

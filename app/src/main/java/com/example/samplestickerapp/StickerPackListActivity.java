@@ -36,6 +36,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,6 +58,7 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     private static final int STICKER_PREVIEW_DISPLAY_LIMIT = 5;
     private LinearLayoutManager packLayoutManager;
     private RecyclerView packRecyclerView;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private StickerPackListAdapter allStickerPacksListAdapter;
     private ArrayList<StickerPack> stickerPackList;
     private View contextMenuAnchor;
@@ -68,6 +70,9 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sticker_pack_list);
         packRecyclerView = findViewById(R.id.sticker_pack_list);
+        swipeRefreshLayout = findViewById(R.id.swipe_refresh);
+        swipeRefreshLayout.setColorSchemeColors(0xFF4CAF50, 0xFF3F51B5, 0xFFFF4081);
+
         stickerPackList = getIntent().getParcelableArrayListExtra(EXTRA_STICKER_PACK_LIST_DATA);
         showStickerPackList(stickerPackList);
         if (getSupportActionBar() != null) {
@@ -83,6 +88,11 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         );
         root.addView(contextMenuAnchor, lp);
         registerForContextMenu(contextMenuAnchor);
+
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(StickerPackListActivity.this);
+            recarregarListagem();
+        });
     }
 
     @Override
@@ -90,20 +100,8 @@ public class StickerPackListActivity extends AddStickerPackActivity {
         super.onResume();
 
         if (ContentsJsonHelper.stickerPackAlterado != null) {
-//            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-//            recarregarListagem();
-//            ContentsJsonHelper.stickerPackAlterado = null;
-
             for (int i = 0; i < stickerPackList.size(); i++) {
                 if (ContentsJsonHelper.stickerPackAlterado.identifier.equals(stickerPackList.get(i).identifier)) {
-
-//                    if (!ContentsJsonHelper.stickersAlterados.isEmpty()) {
-//                        for (int x = 0; x < ContentsJsonHelper.stickersAlterados.size(); x++) {
-//                            ContentsJsonHelper.stickerPackAlterado.getStickers().add(0, ContentsJsonHelper.stickersAlterados.get(x));
-//                        }
-//
-//                        ContentsJsonHelper.stickersAlterados = new ArrayList<>();
-//                    }
 
                     stickerPackList.set(i, ContentsJsonHelper.stickerPackAlterado);
                     allStickerPacksListAdapter.notifyItemChanged(stickerPackList.indexOf(ContentsJsonHelper.stickerPackAlterado));
@@ -125,14 +123,6 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-
-        if (id == R.id.action_meu_update) {
-
-            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-            recarregarListagem();
-
-            return true;
-        }
 
         if (id == R.id.action_meu_listagem) {
             showCreateStickerPackDialog();
@@ -296,6 +286,8 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                         showStickerPackList(stickerPackList);
                     }
                 }
+
+                swipeRefreshLayout.setRefreshing(false);
             });
 
         }).start();
