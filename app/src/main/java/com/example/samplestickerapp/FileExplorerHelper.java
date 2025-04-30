@@ -12,7 +12,9 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.ImageButton;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
@@ -55,7 +57,44 @@ public class FileExplorerHelper {
     }
 
     public void extracted(File file, Class classs) {
+        if (file.getName().contains(".mp4")) {
+            AlertDialogHelper.showAlertDialog(activity, "",
+                    "Vídeos muito grandes ou com qualidade muito alta precisam ser comprimidos para que a figurinha seja criada " +
+                            "do jeito que o whatsapp aceita(até 500kb). \n" +
+                            "Gostaria de passar esse video em nosso processamento ou usa-lo como está?", "Usar como está", "Processar",
+                    () -> {
+                        try {
+                            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                            retriever.setDataSource(file.getAbsolutePath());
+                            long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                            retriever.release();
+
+                            Intent intent = new Intent(activity, classs);
+                            if (durationMs > 8000)
+                                intent = new Intent(activity, CustomVideoRangeActivity.class);
+
+                            intent.putExtra("sticker_pack", stickerPack);
+                            intent.putExtra("file_path", file.getAbsolutePath());
+                            activity.startActivity(intent);
+                            return;
+                        } catch (Exception e) {
+
+                        }
+                        extracted2(file, classs);
+                    }, () -> {
+                        extracted2(file, classs);
+                    });
+            return;
+        }
+
+        extracted2(file, classs);
+    }
+
+    public void extracted2(File file, Class classs) {
         LayoutInflater inflater = LayoutInflater.from(activity);
+        View customTitleView = inflater.inflate(R.layout.custom_dialog_title, null);
+        ImageButton closeButton = customTitleView.findViewById(R.id.closeButton);
+
         View dialogView = inflater.inflate(R.layout.dialog_with_spinner, null);
 
         Spinner spinner = dialogView.findViewById(R.id.dialog_spinner);
@@ -70,7 +109,8 @@ public class FileExplorerHelper {
         spinner.setAdapter(adapter);
 
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setTitle("")
+                .setCustomTitle(customTitleView)
+                .setCancelable(false)
                 .setView(dialogView)
                 .setPositiveButton("Processar", (dialogInterface, which) -> {
 
@@ -82,6 +122,8 @@ public class FileExplorerHelper {
                     dialogInterface.dismiss();
                 })
                 .create();
+
+        closeButton.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
 

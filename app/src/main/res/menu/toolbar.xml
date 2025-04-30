@@ -6,11 +6,11 @@
         android:icon="@drawable/ic_clear"
         android:title="@string/more_info_button"
         app:showAsAction="always" />
-    <item
-        android:id="@+id/action_listar_diretorio"
-        android:icon="@drawable/folder_xml"
-        android:title="@string/more_info_button"
-        app:showAsAction="always" />
+<!--    <item-->
+<!--        android:id="@+id/action_listar_diretorio"-->
+<!--        android:icon="@drawable/folder_xml"-->
+<!--        android:title="@string/more_info_button"-->
+<!--        app:showAsAction="always" />-->
     <item
         android:id="@+id/action_adicionar_novo"
         android:icon="@drawable/sticker_3rdparty_web"

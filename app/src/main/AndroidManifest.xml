@@ -37,7 +37,9 @@
         </activity>
 
         <activity android:name=".EntryActivity"></activity>
-        <activity android:name=".StickerPackListActivity" />
+        <activity
+            android:name=".StickerPackListActivity"
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".StickerPackDetailsActivity"
             android:parentActivityName=".StickerPackListActivity"

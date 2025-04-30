@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialog_body_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="24dp"
+    android:paddingTop="24dp"
+    android:paddingRight="24dp"
+    android:paddingBottom="0dp">
+
+    <!-- Mensagem -->
+    <TextView
+        android:id="@+id/dialogMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="5dp"
+        android:text="Aqui vai a mensagem"
+        android:textColor="#000"
+        android:textSize="16sp" />
+
+    <!-- Botão com aparência de ContextMenu -->
+    <Button
+        android:id="@+id/buttonProcessar"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:paddingStart="5dp"
+        android:text="Processar"
+        android:textAppearance="?android:attr/textAppearanceListItem"
+        android:textColor="#000" />
+
+    <!-- Segundo botão com mesma aparência -->
+    <Button
+        android:id="@+id/buttonFechar"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:paddingStart="5dp"
+        android:text="Fechar"
+        android:textAppearance="?android:attr/textAppearanceListItem"
+        android:textColor="#000" />
+
+</LinearLayout>

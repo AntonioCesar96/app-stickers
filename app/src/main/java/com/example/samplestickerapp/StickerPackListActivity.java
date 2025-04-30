@@ -15,6 +15,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.graphics.Color;
+import android.media.MediaMetadataRetriever;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.InputType;
@@ -32,11 +33,18 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import com.google.android.material.navigation.NavigationView;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,7 +59,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 
-public class StickerPackListActivity extends AddStickerPackActivity {
+public class StickerPackListActivity extends AddStickerPackActivity implements NavigationView.OnNavigationItemSelectedListener {
     private static final int MENU_TRIM = 1;
     private static final int MENU_CROP = 2;
     public static final String EXTRA_STICKER_PACK_LIST_DATA = "sticker_pack_list";
@@ -64,35 +72,86 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     private View contextMenuAnchor;
     private File file;
     private StickerPack stickerPackSelecionado;
+    private DrawerLayout drawerLayout;
+    private ActionBarDrawerToggle toggle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sticker_pack_list);
+
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        // Drawer e Toggle
+        drawerLayout = findViewById(R.id.drawer_layout);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+
+        toggle = new ActionBarDrawerToggle(
+                this,
+                drawerLayout,
+                toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close
+        );
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+
         packRecyclerView = findViewById(R.id.sticker_pack_list);
         swipeRefreshLayout = findViewById(R.id.swipe_refresh);
         swipeRefreshLayout.setColorSchemeColors(0xFF4CAF50, 0xFF3F51B5, 0xFFFF4081);
 
         stickerPackList = getIntent().getParcelableArrayListExtra(EXTRA_STICKER_PACK_LIST_DATA);
         showStickerPackList(stickerPackList);
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle("Pacotes");
         }
 
         // 1) Cria âncora invisível e centraliza:
-        FrameLayout root = findViewById(android.R.id.content);
-        contextMenuAnchor = new View(this);
-        contextMenuAnchor.setId(View.generateViewId());
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                0, 0, Gravity.CENTER
-        );
-        root.addView(contextMenuAnchor, lp);
-        registerForContextMenu(contextMenuAnchor);
+//        FrameLayout root = findViewById(android.R.id.content);
+//        contextMenuAnchor = new View(this);
+//        contextMenuAnchor.setId(View.generateViewId());
+//        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+//                0, 0, Gravity.CENTER
+//        );
+//        root.addView(contextMenuAnchor, lp);
+//        registerForContextMenu(contextMenuAnchor);
 
         swipeRefreshLayout.setOnRefreshListener(() -> {
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(StickerPackListActivity.this);
             recarregarListagem();
         });
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.videos_cache:
+                Intent intent = new Intent(this, FileExplorerActivity.class);
+                intent.putExtra("sticker_pack", stickerPackList.get(0));
+                startActivity(intent);
+                break;
+            case R.id.videos_usados:
+                Intent intent2 = new Intent(this, FileExplorerActivity.class);
+                intent2.putExtra("sticker_pack", stickerPackList.get(0));
+                intent2.putExtra("videos_usados", true);
+                startActivity(intent2);
+                break;
+        }
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 
     @Override
@@ -344,6 +403,9 @@ public class StickerPackListActivity extends AddStickerPackActivity {
     }
 
     private void onItemClick(File file) {
+        RecentFileDao dao = new RecentFileDao(this);
+        dao.inserir(file.getAbsolutePath());
+
         String name = file.getName().toLowerCase();
 
         // TODO: quando .webp avaliar se é estatico ou nao para saber qual tela abrir
@@ -351,7 +413,19 @@ public class StickerPackListActivity extends AddStickerPackActivity {
                 ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts", ".gif", ".webp");
         if (extensaoVideos.stream().anyMatch(name::endsWith)) {
             this.file = file;
-            openContextMenu(contextMenuAnchor);
+            FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPackSelecionado);
+            AlertDialogHelper.showAlertDialog(this, "",
+                    "O que deseja fazer?",
+                    "Aparar(Trim)", "Cortar(Crop)",
+                    () -> {
+                        fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
+                    }, () -> {
+                        fileExplorerHelper.extracted(file, CropVideoActivity.class);
+                    });
+
+
+
+            //openContextMenu(contextMenuAnchor);
             return;
         }
 
@@ -368,27 +442,27 @@ public class StickerPackListActivity extends AddStickerPackActivity {
 
         Toast.makeText(this, "Não é possível criar uma figurinha a partir desse arquivo", Toast.LENGTH_SHORT).show();
     }
-
-    @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
-        super.onCreateContextMenu(menu, v, menuInfo);
-        menu.setHeaderTitle("Opções");
-        menu.add(0, MENU_TRIM, 0, "Aparar(Trim)");
-        menu.add(0, MENU_CROP, 1, "Cortar(Crop)");
-    }
-
-    @Override
-    public boolean onContextItemSelected(MenuItem item) {
-        FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPackSelecionado);
-        switch (item.getItemId()) {
-            case MENU_TRIM:
-                fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
-                return true;
-            case MENU_CROP:
-                fileExplorerHelper.extracted(file, CropVideoActivity.class);
-                return true;
-            default:
-                return super.onContextItemSelected(item);
-        }
-    }
+//
+//    @Override
+//    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+//        super.onCreateContextMenu(menu, v, menuInfo);
+//        menu.setHeaderTitle("Opções");
+//        menu.add(0, MENU_TRIM, 0, "Aparar(Trim)");
+//        menu.add(0, MENU_CROP, 1, "Cortar(Crop)");
+//    }
+//
+//    @Override
+//    public boolean onContextItemSelected(MenuItem item) {
+//        FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPackSelecionado);
+//        switch (item.getItemId()) {
+//            case MENU_TRIM:
+//                fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
+//                return true;
+//            case MENU_CROP:
+//                fileExplorerHelper.extracted(file, CropVideoActivity.class);
+//                return true;
+//            default:
+//                return super.onContextItemSelected(item);
+//        }
+//    }
 }

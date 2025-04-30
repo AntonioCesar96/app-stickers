@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/videos_cache"
+            android:title="Vídeos em cache" />
+        <item
+            android:id="@+id/videos_usados"
+            android:title="Vídeos/Imagens recentes" />
+    </group>
+</menu>

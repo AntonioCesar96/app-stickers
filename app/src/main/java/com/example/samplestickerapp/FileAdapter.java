@@ -6,6 +6,7 @@ import android.media.ThumbnailUtils;
 import android.os.Build;
 import android.provider.MediaStore;
 import android.text.format.Formatter;
+import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,21 +23,44 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
-    private List<File> items;
-    private OnClickListener onClickListener;
+    private final List<File> items;
+    private final OnClickListener onClickListener;
+    private final ExecutorService executor;
+    private final LruCache<String, Bitmap> thumbnailCache;
+    private final Map<String, VideoInfo> infoCache;
 
     public FileAdapter(List<File> items, OnClickListener onClickListener) {
         this.items = items;
         this.onClickListener = onClickListener;
+        // Thread pool para carregar dados em background
+        this.executor = Executors.newFixedThreadPool(4);
+
+        // Cache de thumbnails: usa até 1/8 da memória disponível
+        final int maxMem = (int) (Runtime.getRuntime().maxMemory() / 1024);
+        final int cacheSize = maxMem / 8;
+        this.thumbnailCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+            protected int sizeOf(String key, Bitmap bmp) {
+                return bmp.getByteCount() / 1024;
+            }
+        };
+
+        // Cache simples de metadados
+        this.infoCache = new ConcurrentHashMap<>();
     }
 
     public void updateList(List<File> newItems) {
-        this.items = newItems;
+        items.clear();
+        items.addAll(newItems);
         notifyDataSetChanged();
     }
 
@@ -55,110 +79,130 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(ViewHolder h, int pos) {
         File file = items.get(pos);
+        String path = file.getAbsolutePath();
 
         h.container.setOnClickListener(v -> onClickListener.onClickListener(file));
+        h.name.setText(getDisplayName(file));
 
-        try {
-            String nome = file.getName().split("\\.")[0]
-                    .replace("mp4_", "").replace("_", " ");
-            h.name.setText(nome);
-        } catch (Exception e) {
-            h.name.setText(file.getName());
-        }
-        try {
-            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-            retriever.setDataSource(file.getAbsolutePath());
-            long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-            h.textDuracao.setText((durationMs / 1000) + "s");
-
-            String sizeStr = Formatter.formatShortFileSize(h.container.getContext(), file.length());
-            h.textSize.setText(sizeStr);
-
-            String mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
-            String formatStr = mime != null && mime.contains("/") ? mime.substring(mime.indexOf('/') + 1).toUpperCase() : "N/A";
-            h.textFormat.setText(formatStr);
-            //h.textFormat.setVisibility(View.GONE);
-
-            String width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
-            String height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
-            h.textResolucao.setText(width + "×" + height);
-
-            String isoDate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE);
-            if (isoDate != null) {
-                SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                parser.setTimeZone(TimeZone.getTimeZone("GMT"));
-                Date date = parser.parse(isoDate);
-                String dateStr = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date);
-                h.textDate.setText(dateStr);
-            } else {
-                h.textDate.setText("—");
-            }
-            retriever.release();
-
-            return;
-        } catch (Exception e) {
+        // Primeiro tenta recuperar metadados do cache
+        VideoInfo cachedInfo = infoCache.get(path);
+        if (cachedInfo != null) {
+            applyInfoToHolder(h, cachedInfo);
+        } else {
+            // coloca placeholders
+            h.textDuracao.setText("…");
+            h.textSize.setText("…");
+            h.textFormat.setText("…");
+            h.textResolucao.setText("…");
+            h.textDate.setText("…");
+            // carrega em background
+            executor.execute(() -> {
+                VideoInfo info = extractVideoInfo(h, file);
+                infoCache.put(path, info);
+                // atualiza UI na thread principal
+                h.container.post(() -> applyInfoToHolder(h, info));
+            });
         }
 
-        if (file.isDirectory()) {
+        // Depois, o thumbnail
+        Bitmap thumb = thumbnailCache.get(path);
+        if (thumb != null) {
+            h.thumb.setImageBitmap(thumb);
+        } else if (file.isDirectory()) {
             h.thumb.setImageResource(R.drawable.folder_xml);
         } else {
-            String name = file.getName().toLowerCase();
-
-            // Listas de extensões
-            List<String> extensaoImagens = Arrays.asList(
-                    ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".svg");
-            List<String> extensaoAudios = Arrays.asList(
-                    ".mp3", ".aac", ".wav", ".flac", ".ogg", ".m4a", ".wma");
-            List<String> extensaoVideos = Arrays.asList(
-                    ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts");
-            List<String> extensaoDocumentos = Arrays.asList(
-                    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".rtf");
-            List<String> extensaoCompactados = Arrays.asList(
-                    ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz");
-            List<String> extensaoApk = Collections.singletonList(
-                    ".apk");
-            List<String> extensaoCodigo = Arrays.asList(
-                    ".java", ".kt", ".xml", ".html", ".css", ".js", ".json", ".csv", ".md");
-
-            if (extensaoImagens.stream().anyMatch(name::endsWith)) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    try {
-                        Bitmap bm = ThumbnailUtils.createImageThumbnail(
-                                file.getAbsolutePath(),
-                                MediaStore.Images.Thumbnails.MINI_KIND
-                        );
-                        h.thumb.setImageBitmap(bm);
-                    } catch (Exception e) {
-                        h.thumb.setImageResource(R.drawable.icon_image);
-                    }
-                } else {
-                    h.thumb.setImageResource(R.drawable.icon_image);
+            // placeholder genérico
+            h.thumb.setImageResource(R.drawable.icon_unknown);
+            executor.execute(() -> {
+                Bitmap bm = createThumbnail(file);
+                if (bm != null) {
+                    thumbnailCache.put(path, bm);
+                    h.container.post(() -> h.thumb.setImageBitmap(bm));
                 }
-            } else if (extensaoVideos.stream().anyMatch(name::endsWith)) {
-                try {
-                    Bitmap bm = ThumbnailUtils.createVideoThumbnail(
-                            file.getAbsolutePath(),
-                            MediaStore.Video.Thumbnails.MINI_KIND
-                    );
-                    h.thumb.setImageBitmap(bm);
-                } catch (Exception e) {
-                    h.thumb.setImageResource(R.drawable.icon_video);
-                }
-            } else if (extensaoAudios.stream().anyMatch(name::endsWith)) {
-                h.thumb.setImageResource(R.drawable.icon_music);
-            } else if (extensaoDocumentos.stream().anyMatch(name::endsWith)) {
-                h.thumb.setImageResource(R.drawable.icon_document);
-            } else if (extensaoCompactados.stream().anyMatch(name::endsWith)) {
-                h.thumb.setImageResource(R.drawable.icon_archive);
-            } else if (extensaoApk.stream().anyMatch(name::endsWith)) {
-                h.thumb.setImageResource(R.drawable.icon_apk);
-            } else if (extensaoCodigo.stream().anyMatch(name::endsWith)) {
-                h.thumb.setImageResource(R.drawable.icon_code);
-            } else {
-                h.thumb.setImageResource(R.drawable.icon_unknown);
+            });
+        }
+    }
+
+    private String getDisplayName(File file) {
+        String name = file.getName();
+        try {
+            name = name.split("\\.")[0]
+                    .replace("mp4_", "")
+                    .replace("_", " ");
+        } catch (Exception ignored) {
+        }
+        return name;
+    }
+
+    private void applyInfoToHolder(ViewHolder h, VideoInfo info) {
+        h.textDuracao.setText(info.durationSec + "s");
+        h.textSize.setText(info.sizeStr);
+        h.textFormat.setText(info.format);
+        h.textResolucao.setText(info.resolution);
+        h.textDate.setText(info.dateStr);
+    }
+
+    private VideoInfo extractVideoInfo(ViewHolder holder, File file) {
+        VideoInfo info = new VideoInfo();
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        try {
+            retriever.setDataSource(file.getAbsolutePath());
+            long durMs = Long.parseLong(retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_DURATION));
+
+            info.durationSec = (int) durMs / 1000;
+
+            info.sizeStr = Formatter.formatShortFileSize(
+                    holder.thumb.getContext(), file.length());
+
+            String mime = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
+            info.format = (mime != null && mime.contains("/"))
+                    ? mime.substring(mime.indexOf('/') + 1).toUpperCase()
+                    : "N/A";
+
+            String w = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+            String h = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+            info.resolution = w + "×" + h;
+
+            info.dateStr = new SimpleDateFormat("dd/MM/yyyy",
+                    Locale.getDefault()).format(new Date(file.lastModified()));
+
+        } catch (Exception e) {
+            // valores padrão em caso de erro
+            info.durationSec = 0;
+            info.sizeStr = "—";
+            info.format = "—";
+            info.resolution = "—";
+            info.dateStr = "—";
+        } finally {
+            retriever.release();
+        }
+        return info;
+    }
+
+    private Bitmap createThumbnail(File file) {
+        String name = file.getName().toLowerCase();
+        // decide tipo apenas por extensão curta
+        if (name.endsWith(".jpg") || name.endsWith(".png")) {
+            try {
+                return ThumbnailUtils.createImageThumbnail(
+                        file.getAbsolutePath(),
+                        MediaStore.Images.Thumbnails.MINI_KIND);
+            } catch (Exception ignored) {
+            }
+        } else if (name.endsWith(".mp4") || name.endsWith(".mkv")) {
+            try {
+                return ThumbnailUtils.createVideoThumbnail(
+                        file.getAbsolutePath(),
+                        MediaStore.Video.Thumbnails.MINI_KIND);
+            } catch (Exception ignored) {
             }
         }
-
+        // outros tipos podem usar ícones fixos
+        return null;
     }
 
     public interface OnClickListener {
@@ -166,14 +210,10 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        View container;
-        ImageView thumb;
-        TextView name;
-        TextView textSize;
-        TextView textFormat;
-        TextView textResolucao;
-        TextView textDate;
-        TextView textDuracao;
+        final View container;
+        final ImageView thumb;
+        final TextView name, textSize, textFormat, textResolucao,
+                textDate, textDuracao;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -186,9 +226,11 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
             textDate = itemView.findViewById(R.id.text_date);
             textDuracao = itemView.findViewById(R.id.text_duracao);
         }
+    }
 
-        void bind(File file) {
-            itemView.setTag(file);
-        }
+    // Classe auxiliar para armazenar metadados
+    private static class VideoInfo {
+        int durationSec;
+        String sizeStr, format, resolution, dateStr;
     }
 }

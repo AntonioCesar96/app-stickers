@@ -323,12 +323,12 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             return true;
         }
 
-        if (item.getItemId() == R.id.action_listar_diretorio && stickerPack != null) {
-            Intent intent = new Intent(this, FileExplorerActivity.class);
-            intent.putExtra("sticker_pack", stickerPack);
-            startActivity(intent);
-            return true;
-        }
+//        if (item.getItemId() == R.id.action_listar_diretorio && stickerPack != null) {
+//            Intent intent = new Intent(this, FileExplorerActivity.class);
+//            intent.putExtra("sticker_pack", stickerPack);
+//            startActivity(intent);
+//            return true;
+//        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -546,6 +546,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     }
 
     private void onItemClick(File file) {
+        RecentFileDao dao = new RecentFileDao(this);
+        dao.inserir(file.getAbsolutePath());
+
         String name = file.getName().toLowerCase();
 
         // TODO: quando .webp avaliar se é estatico ou nao para saber qual tela abrir
@@ -553,7 +556,17 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 ".mp4", ".webm", ".mkv", ".avi", ".mov", ".flv", ".wmv", ".3gp", ".ts", ".gif", ".webp");
         if (extensaoVideos.stream().anyMatch(name::endsWith)) {
             this.file = file;
-            openContextMenu(contextMenuAnchor);
+            FileExplorerHelper fileExplorerHelper = new FileExplorerHelper(this, stickerPack);
+            AlertDialogHelper.showAlertDialog(this, "",
+                    "O que deseja fazer?",
+                    "Aparar(Trim)", "Cortar(Crop)",
+                    () -> {
+                        fileExplorerHelper.extracted(file, CustomVideoRangeActivity.class);
+                    }, () -> {
+                        fileExplorerHelper.extracted(file, CropVideoActivity.class);
+                    });
+
+            //openContextMenu(contextMenuAnchor);
             return;
         }
 
