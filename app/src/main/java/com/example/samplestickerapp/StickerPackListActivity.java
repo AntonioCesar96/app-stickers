@@ -132,12 +132,14 @@ public class StickerPackListActivity extends AddStickerPackActivity implements N
             case R.id.videos_cache:
                 Intent intent = new Intent(this, FileExplorerActivity.class);
                 intent.putExtra("sticker_pack", stickerPackList.get(0));
+                intent.putExtra("titulo", "Vídeos em cache");
                 startActivity(intent);
                 break;
-            case R.id.videos_usados:
+            case R.id.videos_recentes:
                 Intent intent2 = new Intent(this, FileExplorerActivity.class);
                 intent2.putExtra("sticker_pack", stickerPackList.get(0));
-                intent2.putExtra("videos_usados", true);
+                intent2.putExtra("titulo", "Vídeos/Imagens recentes");
+                intent2.putExtra("videos_recentes", true);
                 startActivity(intent2);
                 break;
         }

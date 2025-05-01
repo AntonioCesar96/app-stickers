@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.Toast;
@@ -296,5 +297,15 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
                 runOnUiThread(() -> Toast.makeText(CustomVideoRangeActivity.this, "Falha ao cortar vídeo. Veja o log para detalhes.", Toast.LENGTH_LONG).show());
             }
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }

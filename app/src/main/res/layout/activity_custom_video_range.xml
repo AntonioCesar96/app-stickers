@@ -67,11 +67,15 @@
             android:focusableInTouchMode="true"
             android:longClickable="true" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/show_range_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="Aparar(Trim)" />
+            android:text="Aparar(Trim)"
+            app:backgroundTint="@android:color/black"
+            android:textColor="@android:color/white"
+            android:insetTop="0dp"
+            android:insetBottom="0dp" />
     </LinearLayout>
 </ScrollView>

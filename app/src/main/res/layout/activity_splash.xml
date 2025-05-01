@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:padding="10dp">
 
@@ -15,10 +16,15 @@
         android:layout_marginBottom="10dp"
         android:text="Conceda a permissão para usar o app" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPermissao"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:textColor="#000"
-        android:text="Conceder permissão" />
+        android:layout_marginTop="10dp"
+        android:text="Conceder permissão"
+        app:backgroundTint="@android:color/white"
+        android:textColor="@android:color/black"
+        android:insetTop="0dp"
+        android:insetBottom="0dp" />
+
 </LinearLayout>

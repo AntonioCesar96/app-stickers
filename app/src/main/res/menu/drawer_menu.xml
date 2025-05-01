@@ -4,7 +4,7 @@
             android:id="@+id/videos_cache"
             android:title="Vídeos em cache" />
         <item
-            android:id="@+id/videos_usados"
+            android:id="@+id/videos_recentes"
             android:title="Vídeos/Imagens recentes" />
     </group>
 </menu>

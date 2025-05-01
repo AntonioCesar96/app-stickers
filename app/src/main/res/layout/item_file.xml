@@ -1,90 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:foreground="?android:attr/selectableItemBackground"
-    android:padding="8dp">
+    android:layout_height="65dp">
 
-    <!-- Thumbnail ou ícone de pasta/video/imagem -->
-    <ImageView
-        android:id="@+id/image_thumbnail"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:scaleType="centerCrop"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <View
+        android:id="@+id/selectionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_gravity="center_vertical|center_horizontal"
+        android:background="#72595858"
+        android:padding="5dp"
+        android:visibility="gone" />
 
-    <!-- Nome do arquivo com truncamento -->
-    <TextView
-        android:id="@+id/text_filename"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="example_filename.ext"
-        android:textAppearance="?attr/textAppearanceBody1"
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/image_thumbnail"
-        app:layout_constraintTop_toTopOf="parent" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:foreground="?android:attr/selectableItemBackground"
+        android:padding="8dp">
 
-    <!-- Informações adicionais: Tamanho, Formato, Data -->
-    <LinearLayout
-        android:id="@+id/layout_file_info"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@id/text_filename"
-        app:layout_constraintTop_toBottomOf="@id/text_filename">
+        <!-- Thumbnail ou ícone de pasta/video/imagem -->
+        <ImageView
+            android:id="@+id/image_thumbnail"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="centerCrop"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
+        <!-- Nome do arquivo com truncamento -->
         <TextView
-            android:id="@+id/text_size"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="2.3 MB"
-            android:textColor="#999999"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/text_format"
-            android:layout_width="wrap_content"
+            android:id="@+id/text_filename"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:text="MP4"
-            android:textColor="#999999"
-            android:textSize="11sp" />
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="example_filename.ext"
+            android:textAppearance="?attr/textAppearanceBody1"
+            android:textSize="14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/image_thumbnail"
+            app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/text_resolucao"
-            android:layout_width="wrap_content"
+        <!-- Informações adicionais: Tamanho, Formato, Data -->
+        <LinearLayout
+            android:id="@+id/layout_file_info"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="512x512"
-            android:textColor="#999999"
-            android:textSize="11sp" />
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/text_filename"
+            app:layout_constraintTop_toBottomOf="@id/text_filename">
 
-        <TextView
-            android:id="@+id/text_duracao"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="5s"
-            android:textColor="#999999"
-            android:textSize="11sp" />
+            <TextView
+                android:id="@+id/text_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2.3 MB"
+                android:textColor="#999999"
+                android:textSize="11sp" />
 
-        <TextView
-            android:id="@+id/text_date"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="27/04/2025"
-            android:textColor="#999999"
-            android:textSize="11sp" />
-    </LinearLayout>
+            <TextView
+                android:id="@+id/text_format"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="MP4"
+                android:textColor="#999999"
+                android:textSize="11sp" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <TextView
+                android:id="@+id/text_resolucao"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="512x512"
+                android:textColor="#999999"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/text_duracao"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="5s"
+                android:textColor="#999999"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/text_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="27/04/2025"
+                android:textColor="#999999"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>
