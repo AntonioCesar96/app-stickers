@@ -22,6 +22,7 @@ import java.util.Objects;
 public class ContentsJsonHelper {
 
     public static StickerPack stickerPackAlterado;
+    public static boolean packsChanged;
     public static ArrayList<Sticker> stickersAlterados = new ArrayList<>();
 
     public static ArrayList<StickerPackModel> getStickerPacks() {

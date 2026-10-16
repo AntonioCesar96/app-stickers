@@ -52,4 +52,12 @@
         <item>rgb24</item>
         <item>gray</item>
     </string-array>
+    <string name="move_stickers">Mover figurinhas</string>
+    <string name="move_choose_pack">Escolha o pacote de destino</string>
+    <string name="move_selected_count">%1$d figurinha(s) selecionada(s)</string>
+    <string name="move_confirm">Mover %1$d figurinha(s)</string>
+    <string name="move_empty">Nenhum outro pacote compatível tem espaço para toda a seleção.</string>
+    <string name="move_loading">Carregando pacotes…</string>
+    <string name="move_running">Movendo figurinhas…</string>
+    <string name="move_success">Figurinhas movidas para %1$s</string>
 </resources>

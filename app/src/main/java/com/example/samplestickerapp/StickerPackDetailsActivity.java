@@ -102,6 +102,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private SimpleDraweeView expandedStickerView;
     private AlertDialog dialog;
     private MenuItem deleteMenuItem;
+    private MenuItem moveMenuItem, addMenuItem, downloadMenuItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -109,6 +110,9 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         setContentView(R.layout.activity_sticker_pack_details);
         boolean showUpButton = getIntent().getBooleanExtra(EXTRA_SHOW_UP_BUTTON, false);
         stickerPack = getIntent().getParcelableExtra("sticker_pack");
+        if (savedInstanceState != null && savedInstanceState.containsKey("current_pack")) {
+            stickerPack = savedInstanceState.getParcelable("current_pack");
+        }
         TextView packNameTextView = findViewById(R.id.pack_name);
         TextView packPublisherTextView = findViewById(R.id.author);
         ImageView packTrayIcon = findViewById(R.id.tray_image);
@@ -150,6 +154,25 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         );
         root.addView(contextMenuAnchor, lp);
         registerForContextMenu(contextMenuAnchor);
+        getSupportFragmentManager().setFragmentResultListener(MoveStickersSheet.RESULT, this, (key, result) -> {
+            StickerPack updated = result.getParcelable("source");
+            if (updated != null) {
+                stickerPack = updated;
+                getIntent().putExtra("sticker_pack", updated);
+                adapter.replacePack(updated);
+                ((TextView) findViewById(R.id.author)).setText(updated.getStickers().size() + " figurinhas");
+                getOnUpdateSizeListener().onUpdateSizeListener(updated);
+            } else {
+                adapter.restoreSelection(java.util.Collections.emptyList());
+            }
+            String error = result.getString("error");
+            Toast.makeText(this, error == null ? getString(R.string.move_success, result.getString("destination"))
+                    : error, Toast.LENGTH_LONG).show();
+        });
+        if (savedInstanceState != null) {
+            ArrayList<String> selected = savedInstanceState.getStringArrayList("selected_stickers");
+            if (selected != null) adapter.restoreSelection(selected);
+        }
     }
 
     private StickerPreviewAdapter.OnUpdateSizeListener getOnUpdateSizeListener() {
@@ -160,23 +183,37 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         return new StickerPreviewAdapter.OnSelectionListener() {
             @Override
             public void onSelectionModeChanged(boolean active) {
-                if (deleteMenuItem != null) {
-                    deleteMenuItem.setVisible(active);
-                }
+                updateSelectionToolbar();
             }
 
             @Override
             public void onSelectionCountChanged(int count) {
-                if (deleteMenuItem != null) {
-                    if (count == 0) {
-                        getSupportActionBar().setTitle("Detalhes");
-                    } else {
-                        getSupportActionBar().setTitle(String.format("Excluir (%d)", count));
-                        deleteMenuItem.setTitle(String.format("Excluir (%d)", count));
-                    }
-                }
+                updateSelectionToolbar();
             }
         };
+    }
+
+    private void updateSelectionToolbar() {
+        int count = adapter == null ? 0 : adapter.selectedFiles().size();
+        if (deleteMenuItem != null) {
+            deleteMenuItem.setVisible(count > 0);
+            deleteMenuItem.setTitle("Excluir (" + count + ")");
+        }
+        if (moveMenuItem != null) moveMenuItem.setVisible(count > 0);
+        if (addMenuItem != null) addMenuItem.setVisible(count == 0);
+        if (downloadMenuItem != null) downloadMenuItem.setVisible(count == 0);
+        if (getSupportActionBar() != null) getSupportActionBar().setTitle(count == 0 ? "Detalhes" : "Selecionadas (" + count + ")");
+    }
+
+    @Override protected void onSaveInstanceState(@NonNull Bundle state) {
+        state.putParcelable("current_pack", stickerPack);
+        state.putStringArrayList("selected_stickers", adapter.selectedFiles());
+        super.onSaveInstanceState(state);
+    }
+
+    @Override public void onBackPressed() {
+        if (!adapter.selectedFiles().isEmpty()) adapter.restoreSelection(java.util.Collections.emptyList());
+        else super.onBackPressed();
     }
 
     @Override
@@ -226,13 +263,29 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         getMenuInflater().inflate(R.menu.toolbar, menu);
         // inicialmente oculto
         deleteMenuItem = menu.findItem(R.id.action_delete);
-        deleteMenuItem.setVisible(false);
+        moveMenuItem = menu.findItem(R.id.action_move);
+        addMenuItem = menu.findItem(R.id.action_add);
+        downloadMenuItem = menu.findItem(R.id.action_adicionar_novo);
+        updateSelectionToolbar();
 
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
+        if (item.getItemId() == R.id.action_move) {
+            ArrayList<String> selected = adapter.selectedFiles();
+            if (selected.isEmpty()) return true;
+            if (stickerPack.getStickers().size() - selected.size() < 3) {
+                Toast.makeText(this, "O pacote de origem precisa manter pelo menos 3 figurinhas.", Toast.LENGTH_LONG).show();
+                return true;
+            }
+            if (getSupportFragmentManager().findFragmentByTag(MoveStickersSheet.TAG) == null) {
+                MoveStickersSheet.create(stickerPack, selected).show(getSupportFragmentManager(), MoveStickersSheet.TAG);
+            }
+            return true;
+        }
 
         if (item.getItemId() == R.id.action_delete && stickerPack != null) {
             adapter.handleDelete(this);

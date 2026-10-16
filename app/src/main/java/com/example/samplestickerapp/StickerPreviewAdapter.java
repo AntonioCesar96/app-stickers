@@ -100,7 +100,11 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     @Override
     public void onBindViewHolder(@NonNull final StickerPreviewViewHolder holder, final int position) {
         holder.stickerPreviewView.setImageResource(errorResource);
-        holder.stickerPreviewView.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName));
+        holder.stickerPreviewView.setController(Fresco.newDraweeControllerBuilder()
+                .setUri(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.getStickers().get(position).imageFileName))
+                .setOldController(holder.stickerPreviewView.getController())
+                .setAutoPlayAnimations(true)
+                .build());
 
         // Indicação visual de seleção
         holder.selectionOverlay.setVisibility(
@@ -147,6 +151,37 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             selectionMode = false;
             onSelectionListener.onSelectionModeChanged(false);
         }
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull StickerPreviewViewHolder holder) {
+        holder.stickerPreviewView.setController(null);
+        super.onViewRecycled(holder);
+    }
+
+    ArrayList<String> selectedFiles() {
+        ArrayList<String> files = new ArrayList<>();
+        for (int i = 0; i < stickerPack.getStickers().size(); i++) {
+            if (selectedPositions.contains(i)) files.add(stickerPack.getStickers().get(i).imageFileName);
+        }
+        return files;
+    }
+
+    void restoreSelection(List<String> files) {
+        selectedPositions.clear();
+        for (int i = 0; i < stickerPack.getStickers().size(); i++) {
+            if (files.contains(stickerPack.getStickers().get(i).imageFileName)) selectedPositions.add(i);
+        }
+        selectionMode = !selectedPositions.isEmpty();
+        notifyDataSetChanged();
+        onSelectionListener.onSelectionModeChanged(selectionMode);
+        onSelectionListener.onSelectionCountChanged(selectedPositions.size());
+    }
+
+    void replacePack(StickerPack pack) {
+        hideExpandedStickerPreview();
+        stickerPack = pack;
+        restoreSelection(Collections.emptyList());
     }
 
     public void handleDelete(Context context) {

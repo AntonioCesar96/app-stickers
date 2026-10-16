@@ -160,6 +160,14 @@ public class StickerPackListActivity extends AddStickerPackActivity implements N
     protected void onResume() {
         super.onResume();
 
+        if (ContentsJsonHelper.packsChanged) {
+            ContentsJsonHelper.packsChanged = false;
+            ContentsJsonHelper.stickerPackAlterado = null;
+            ContentsJsonHelper.stickersAlterados = new ArrayList<>();
+            recarregarListagem();
+            return;
+        }
+
         if (ContentsJsonHelper.stickerPackAlterado != null) {
             for (int i = 0; i < stickerPackList.size(); i++) {
                 if (ContentsJsonHelper.stickerPackAlterado.identifier.equals(stickerPackList.get(i).identifier)) {
@@ -314,7 +322,7 @@ public class StickerPackListActivity extends AddStickerPackActivity implements N
 
             } catch (Exception e) {
                 Log.e("EntryActivity", "error fetching sticker packs", e);
-                result = new Pair<>(e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), null);
+                result = new Pair<>(e.getMessage(), null);
             }
 
             Pair<String, ArrayList<StickerPack>> finalResult = result;
@@ -322,30 +330,9 @@ public class StickerPackListActivity extends AddStickerPackActivity implements N
                 if (finalResult.first != null) {
                     Toast.makeText(this, finalResult.first, Toast.LENGTH_LONG).show();
                 } else {
-                    boolean itemAdicionado = false;
-                    for (StickerPack pack2 : finalResult.second) {
-                        boolean exists = false;
-                        for (StickerPack pack1 : stickerPackList) {
-                            if (pack1.identifier.equals(pack2.identifier)) {
-                                exists = true;
-                                break;
-                            }
-                        }
-
-                        if (!exists) {
-                            stickerPackList.add(0, pack2);
-                            itemAdicionado = true;
-                        }
-                    }
-
-                    if (itemAdicionado) {
-                        allStickerPacksListAdapter.setStickerPackList(finalResult.second);
-                        allStickerPacksListAdapter.notifyItemInserted(0);
-                        allStickerPacksListAdapter.notifyItemRangeChanged(0, stickerPackList.size());
-                    } else {
-                        stickerPackList = finalResult.second;
-                        showStickerPackList(stickerPackList);
-                    }
+                    stickerPackList = finalResult.second;
+                    allStickerPacksListAdapter.setStickerPackList(stickerPackList);
+                    allStickerPacksListAdapter.notifyDataSetChanged();
                 }
 
                 swipeRefreshLayout.setRefreshing(false);

@@ -72,7 +72,11 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
         for (int i = 0; i < actualNumberOfStickersToShow; i++) {
 
             final SimpleDraweeView rowImage = (SimpleDraweeView) LayoutInflater.from(context).inflate(R.layout.sticker_packs_list_image_item, viewHolder.imageRowView, false);
-            rowImage.setImageURI(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName));
+            rowImage.setController(Fresco.newDraweeControllerBuilder()
+                    .setUri(StickerPackLoader.getStickerAssetUri(pack.identifier, pack.getStickers().get(i).imageFileName))
+                    .setOldController(rowImage.getController())
+                    .setAutoPlayAnimations(true)
+                    .build());
 
             final LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) rowImage.getLayoutParams();
             final int marginBetweenImages = minMarginBetweenImages - lp.leftMargin - lp.rightMargin;
@@ -124,6 +128,15 @@ public class StickerPackListAdapter extends RecyclerView.Adapter<StickerPackList
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull StickerPackListItemViewHolder holder) {
+        for (int i = 0; i < holder.imageRowView.getChildCount(); i++) {
+            ((SimpleDraweeView) holder.imageRowView.getChildAt(i)).setController(null);
+        }
+        holder.imageRowView.removeAllViews();
+        super.onViewRecycled(holder);
     }
 
     private void setAddButtonAppearance(ImageView addButton, StickerPack pack) {
