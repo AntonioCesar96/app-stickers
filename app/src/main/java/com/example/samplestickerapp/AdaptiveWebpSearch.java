@@ -19,12 +19,20 @@ final class AdaptiveWebpSearch {
     private boolean done;
     private boolean extraCompression;
     private int detailIndex;
+    private final List<Integer> detailSizes = new ArrayList<>();
 
     AdaptiveWebpSearch(int maxQuality, int maxFps) {
+        this(maxQuality, maxFps, 512);
+    }
+
+    AdaptiveWebpSearch(int maxQuality, int maxFps, int initialDetailSize) {
         if (maxQuality < 0 || maxQuality > 100 || maxFps < 1 || maxFps > 60) {
             throw new IllegalArgumentException("Qualidade: 0–100; FPS: 1–60.");
         }
         this.maxQuality = maxQuality;
+        if (initialDetailSize < 1 || initialDetailSize > 512) throw new IllegalArgumentException("Nitidez: 1–512.");
+        detailSizes.add(initialDetailSize);
+        for (int size : DETAIL_SIZES) if (size < initialDetailSize) detailSizes.add(size);
         // The preferred floor is followed by an explicitly announced gradual fallback.
         minQuality = Math.min(55, maxQuality);
         frameRates.add(maxFps);
@@ -42,7 +50,7 @@ final class AdaptiveWebpSearch {
     boolean isDone() { return done; }
     boolean hasResult() { return bestQuality >= 0; }
     boolean isExtraCompression() { return extraCompression; }
-    int getDetailSize() { return DETAIL_SIZES[detailIndex]; }
+    int getDetailSize() { return detailSizes.get(detailIndex); }
 
     /** Returns true only when the caller should retain this encoded file. */
     boolean recordSize(long bytes) {
@@ -90,7 +98,7 @@ final class AdaptiveWebpSearch {
         extraCompression = true;
         if (quality > 0) {
             quality--;
-        } else if (detailIndex + 1 < DETAIL_SIZES.length) {
+        } else if (detailIndex + 1 < detailSizes.size()) {
             // Keep the FPS floor. Blur finer detail only after quality 0 was actually tried.
             detailIndex++;
         } else {

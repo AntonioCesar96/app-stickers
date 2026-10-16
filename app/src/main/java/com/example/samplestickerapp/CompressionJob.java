@@ -92,6 +92,59 @@ final class CompressionJob {
         return load(context, context.getSharedPreferences(PREFS, 0).getString("pending", null));
     }
 
+    JSONObject control() throws IOException, JSONException {
+        synchronized (CompressionJob.class) {
+            File target = new File(directory, "control.json");
+            try { return new JSONObject(new String(new AtomicFile(target).readFully(), StandardCharsets.UTF_8)); }
+            catch (java.io.FileNotFoundException absent) { return new JSONObject(); }
+        }
+    }
+
+    void request(String action, CompressionSettings settings) throws Exception {
+        if (!"cancel".equals(action) && !("retry".equals(action) && settings != null))
+            throw new IllegalArgumentException("Comando de compressão inválido.");
+        synchronized (CompressionJob.class) {
+            JSONObject state = new JSONObject(new String(new AtomicFile(new File(directory, "state.json"))
+                    .readFully(), StandardCharsets.UTF_8));
+            if (!"running".equals(state.optString("status"))) throw new IOException("A tentativa terminou. Toque novamente para reiniciar.");
+            if (settings != null && state.has("sourceSeconds")) settings.validateDuration(state.getDouble("sourceSeconds"));
+            JSONObject previous = control();
+            if ("cancel".equals(previous.optString("action"))) throw new IOException("Aguarde o cancelamento terminar.");
+            JSONObject command = new JSONObject().put("revision", previous.optInt("revision") + 1).put("action", action);
+            if (settings != null) putSettings(command, settings);
+            AtomicFile file = new AtomicFile(new File(directory, "control.json"));
+            FileOutputStream output = null;
+            try {
+                output = file.startWrite();
+                output.write(command.toString().getBytes(StandardCharsets.UTF_8));
+                file.finishWrite(output);
+            } catch (IOException e) { file.failWrite(output); throw e; }
+        }
+    }
+
+    static void putSettings(JSONObject data, CompressionSettings settings) throws JSONException {
+        data.put("quality", String.valueOf(settings.quality)).put("fps", String.valueOf(settings.fps))
+                .put("compression", String.valueOf(settings.compression)).put("speed", String.valueOf(settings.speed))
+                .put("detailSize", settings.detailSize);
+    }
+
+    static synchronized CompressionJob restart(Context context, CompressionJob previous, CompressionSettings settings) throws Exception {
+        CompressionJob active = pending(context);
+        if (active != null && active.running()) throw new IOException("Aguarde a tentativa em andamento terminar.");
+        JSONObject data = new JSONObject(previous.data.toString());
+        putSettings(data, settings);
+        data.put("status", "running").put("message", "Reiniciando com seus valores…").put("progress", 0)
+                .put("results", new JSONArray()).put("trials", new JSONArray()).put("appliedRevision", 0)
+                .put("extraCompression", false).put("reducedSharpness", false).put("usedExtraCompression", false);
+        data.remove("currentAttempt");
+        CompressionJob job = new CompressionJob(context, UUID.randomUUID().toString(), data);
+        // Inputs still point to the previous durable directory; the service copies them before encoding.
+        data.put("inputsCopied", false);
+        job.save();
+        context.getSharedPreferences(PREFS, 0).edit().putString("pending", job.id).commit();
+        return job;
+    }
+
     static void consume(Context context, String id) {
         if (id != null && id.equals(context.getSharedPreferences(PREFS, 0).getString("pending", null))) {
             context.getSharedPreferences(PREFS, 0).edit().remove("pending").commit();

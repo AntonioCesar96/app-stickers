@@ -79,6 +79,9 @@ public class CropVideoActivity extends AppCompatActivity {
     private String jobId;
     private boolean jobRendered;
     private boolean progressHidden;
+    private String[] retryDraft;
+    private android.widget.PopupWindow compressionInfo;
+    private String compressionControlError = "";
     private final Handler jobHandler = new Handler(Looper.getMainLooper());
     private final Runnable pollJob = new Runnable() {
         @Override public void run() {
@@ -103,6 +106,7 @@ public class CropVideoActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) retryDraft = savedInstanceState.getStringArray("compressionDraft");
         jobId = savedInstanceState == null ? getIntent().getStringExtra(CompressionJob.EXTRA_ID)
                 : savedInstanceState.getString(CompressionJob.EXTRA_ID);
         if (jobId != null) {
@@ -342,36 +346,53 @@ public class CropVideoActivity extends AppCompatActivity {
         if (job == null) return;
         TextView status = findViewById(R.id.compression_status);
         status.setVisibility(View.VISIBLE);
-        String warning = CompressionService.notice(this, job);
-        status.setText((warning.isEmpty() ? "" : warning + "\n")
-                + job.data.optString("message") + (job.running() ? "\nToque para acompanhar." : ""));
-        status.setOnClickListener(v -> { progressHidden = false; refreshJob(); });
+        status.setText(job.data.optString("message") + "\nToque para acompanhar.");
+        status.setOnClickListener(v -> {
+            progressHidden = false;
+            if (progressDialog == null) progressDialog = createProgressDialog();
+            refreshJob();
+        });
         converting = job.running();
         btnCrop.setEnabled(!converting);
         btnExodia.setEnabled(!converting);
         btnOpcoes.setEnabled(!converting);
         cropOverlay.setEnabled(!converting);
-        if (converting) {
+        if (converting || progressDialog != null) {
             if (!progressHidden) {
                 if (progressDialog == null) progressDialog = createProgressDialog();
                 if (!progressDialog.isShowing()) progressDialog.show();
                 ProgressBar progress = progressDialog.findViewById(R.id.progress_bar);
                 int value = job.data.optInt("progress");
                 progress.setIndeterminate(value <= 0);
+                if (!converting) progress.setIndeterminate(false);
                 progress.setMax(100);
                 progress.setProgress(value);
                 TextView attempts = progressDialog.findViewById(R.id.attempts_tv);
                 attempts.setText(job.data.optString("message"));
+                ((TextView) progressDialog.findViewById(R.id.compression_title)).setText(job.running() ? "Criando figurinha"
+                        : job.done() ? "Figurinha pronta" : "cancelled".equals(job.data.optString("status")) ? "Compressão cancelada" : "Falha na compressão");
                 TextView details = progressDialog.findViewById(R.id.webp_info_tv);
-                details.setText((warning.isEmpty() ? "" : warning + "\n\n")
-                        + "Você pode minimizar o app. A compressão continua em segundo plano."
-                        + (value > 0 ? "\nTentativa atual: " + value + "%" : "")
-                        + (NotificationManagerCompat.from(this).areNotificationsEnabled() ? ""
-                        : "\nAtive as notificações para acompanhar fora do app."));
+                org.json.JSONObject last = job.data.optJSONObject("lastAttempt");
+                org.json.JSONObject current = job.data.optJSONObject("currentAttempt");
+                details.setText((current == null ? "" : (converting ? "Tentativa atual: " : "Última iniciada: ") + attemptSettings(current) + "\n\n")
+                        + (last == null ? "Ainda não há uma tentativa concluída."
+                        : String.format(Locale.getDefault(), "Última concluída (#%d): %.2f KB / 500 KB\n%s",
+                        last.optInt("number"), last.optLong("bytes") / 1024.0, attemptSettings(last)))
+                        + (value > 0 && converting ? "\nProgresso atual: " + value + "%" : ""));
+                try {
+                    org.json.JSONObject control = job.control();
+                    boolean waiting = job.running() && control.optInt("revision") > job.data.optInt("appliedRevision");
+                    boolean cancelling = waiting && "cancel".equals(control.optString("action"));
+                    progressDialog.findViewById(R.id.retry_compression_button).setEnabled(!waiting);
+                    progressDialog.findViewById(R.id.cancel_compression).setEnabled(job.running() && !cancelling);
+                    TextView action = progressDialog.findViewById(R.id.compression_action_status);
+                    action.setText(waiting ? cancelling ? "Cancelando a tentativa atual…" : "Interrompendo para reiniciar com seus valores…"
+                            : !compressionControlError.isEmpty() ? compressionControlError
+                            : job.running() ? "" : job.data.optString("message"));
+                } catch (Exception e) { android.util.Log.w("CompressionJob", "Leitura dos controles", e); }
             }
-            return;
         }
-        if (progressDialog != null) progressDialog.dismiss();
+        if (converting) return;
         if (jobRendered) return;
         jobRendered = true;
         mostrarVideo();
@@ -381,13 +402,14 @@ public class CropVideoActivity extends AppCompatActivity {
             org.json.JSONArray results = job.data.optJSONArray("results");
             for (int i = 0; i < results.length(); i++) showResult(job.result(i), results.optString(i));
             btnSalvar.setEnabled(true);
-        } else {
+        } else if (!"cancelled".equals(job.data.optString("status"))) {
             Toast.makeText(this, job.data.optString("message"), Toast.LENGTH_LONG).show();
         }
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putString(CompressionJob.EXTRA_ID, jobId);
+        if (progressDialog != null) state.putStringArray("compressionDraft", readRetryDraft());
         super.onSaveInstanceState(state);
     }
 
@@ -403,17 +425,34 @@ public class CropVideoActivity extends AppCompatActivity {
         jobHandler.removeCallbacks(pollJob);
         gifPreviewHandler.removeCallbacks(loopGifPreview);
         if (progressDialog != null) progressDialog.dismiss();
+        if (compressionInfo != null) compressionInfo.dismiss();
         super.onDestroy();
     }
 
     private AlertDialog createProgressDialog() {
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("Criando figurinha")
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_compression, null);
+        fillRetryFields(dialogView);
+        if (retryDraft != null) {
+            int[] ids = retryFieldIds();
+            for (int i = 0; i < ids.length && i < retryDraft.length; i++)
+                ((EditText) dialogView.findViewById(ids[i])).setText(retryDraft[i]);
+        }
+        dialogView.findViewById(R.id.compression_info).setOnClickListener(this::showCompressionInfo);
+        dialogView.findViewById(R.id.use_current_settings).setOnClickListener(v -> fillRetryFields(dialogView));
+        dialogView.findViewById(R.id.retry_compression_button).setOnClickListener(v -> retryCompression(dialogView));
+        dialogView.findViewById(R.id.cancel_compression).setOnClickListener(v -> {
+            try {
+                CompressionJob job = CompressionJob.load(this, jobId);
+                if (job != null) job.request("cancel", null);
+                compressionControlError = "";
+                refreshJob();
+            } catch (Exception e) { showControlError(dialogView, e.getMessage()); }
+        });
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.AlertDialogCustom)
                 .setView(dialogView)
                 .setCancelable(false)
-                .setPositiveButton("Minimizar app", (d, which) -> moveTaskToBack(true))
-                .setNegativeButton("Fechar progresso", (d, which) -> {
+                .setPositiveButton("Minimizar", (d, which) -> moveTaskToBack(true))
+                .setNegativeButton("Fechar", (d, which) -> {
                     progressHidden = true;
                     mostrarVideo();
                 });
@@ -422,7 +461,106 @@ public class CropVideoActivity extends AppCompatActivity {
                     new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                             .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())));
         }
-        return builder.create();
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.DKGRAY);
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.DKGRAY);
+            android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setLayout((int) (metrics.widthPixels * .95), (int) (metrics.heightPixels * .85));
+                dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            }
+        });
+        return dialog;
+    }
+
+    private static int[] retryFieldIds() {
+        return new int[]{R.id.retry_quality, R.id.retry_fps, R.id.retry_compression, R.id.retry_speed, R.id.retry_detail};
+    }
+
+    private String[] readRetryDraft() {
+        int[] ids = retryFieldIds();
+        String[] values = new String[ids.length];
+        for (int i = 0; i < ids.length; i++) values[i] = ((EditText) progressDialog.findViewById(ids[i])).getText().toString();
+        return values;
+    }
+
+    private void fillRetryFields(View view) {
+        CompressionJob job = CompressionJob.load(this, jobId);
+        if (job == null) return;
+        org.json.JSONObject values = job.data.optJSONObject("currentAttempt");
+        if (values == null) values = job.data;
+        String[] keys = {"quality", "fps", "compression", "speed", "detailSize"};
+        String[] defaults = {"75", "30", "6", "1", "512"};
+        int[] ids = retryFieldIds();
+        for (int i = 0; i < ids.length; i++) ((EditText) view.findViewById(ids[i])).setText(values.optString(keys[i], defaults[i]));
+    }
+
+    private static String attemptSettings(org.json.JSONObject settings) {
+        return String.format(Locale.getDefault(), "Qualidade %s • %s FPS • compressão %s\nVelocidade %s× • nitidez %s",
+                settings.optString("quality"), settings.optString("fps"), settings.optString("compression"),
+                settings.optString("speed"), settings.optString("detailSize", "512"));
+    }
+
+    private void showControlError(View view, String message) {
+        compressionControlError = message == null ? "Não foi possível aplicar a ação." : message;
+        ((TextView) view.findViewById(R.id.compression_action_status)).setText(compressionControlError);
+    }
+
+    private void retryCompression(View view) {
+        try {
+            String[] values = readRetryDraft();
+            CompressionSettings settings = new CompressionSettings(Integer.parseInt(values[0].trim()),
+                    Integer.parseInt(values[1].trim()), Integer.parseInt(values[2].trim()),
+                    Double.parseDouble(values[3].trim().replace(',', '.')), Integer.parseInt(values[4].trim()));
+            CompressionJob job = CompressionJob.load(this, jobId);
+            if (job == null) throw new IllegalStateException("Tarefa não encontrada.");
+            if (job.data.has("sourceSeconds")) settings.validateDuration(job.data.optDouble("sourceSeconds"));
+            if (job.running()) job.request("retry", settings);
+            else {
+                job = CompressionJob.restart(this, job, settings);
+                jobId = job.id;
+                getIntent().putExtra(CompressionJob.EXTRA_ID, jobId);
+                jobRendered = false;
+                controleStickers.clear();
+                btnSalvar.setEnabled(false);
+                CompressionService.start(this, job);
+            }
+            velocidade = String.valueOf(settings.speed); velocidadeFps = String.valueOf(settings.fps);
+            compressionControlError = "";
+            quality = String.valueOf(settings.quality); compression = String.valueOf(settings.compression);
+            ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
+                    .hideSoftInputFromWindow(view.getWindowToken(), 0);
+            view.clearFocus();
+            refreshJob();
+        } catch (NumberFormatException e) { showControlError(view, "Preencha todos os campos com números válidos."); }
+        catch (Exception e) { showControlError(view, e.getMessage()); }
+    }
+
+    private void showCompressionInfo(View anchor) {
+        if (compressionInfo != null && compressionInfo.isShowing()) { compressionInfo.dismiss(); return; }
+        CompressionJob job = CompressionJob.load(this, jobId);
+        String warning = job == null ? "" : CompressionService.notice(this, job);
+        TextView text = new TextView(this);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        text.setPadding(padding, padding, padding, padding);
+        text.setTextColor(Color.BLACK);
+        text.setText((warning.isEmpty() ? "" : warning + "\n\n")
+                + "Você pode minimizar o app. A compressão continua em segundo plano.\n\n"
+                + "Reiniciar interrompe a tentativa atual e reinicia a busca automática com os valores dos campos. "
+                + "No modo de quatro figurinhas, todas são refeitas. Cancelar para o processo e mantém este diálogo aberto.\n\n"
+                + "Qualidade e FPS menores podem reduzir o tamanho. Nitidez menor reduz detalhes, mantendo 512×512. "
+                + "Compressão maior exige mais trabalho do conversor e pode demorar mais."
+                + (NotificationManagerCompat.from(this).areNotificationsEnabled() ? "" : "\n\nAtive as notificações para acompanhar fora do app."));
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(Color.WHITE); background.setCornerRadius(padding / 2f);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this); scroll.addView(text);
+        int width = Math.min(getResources().getDisplayMetrics().widthPixels - padding * 2, padding * 23);
+        compressionInfo = new android.widget.PopupWindow(scroll, width,
+                Math.min(getResources().getDisplayMetrics().heightPixels / 2, padding * 28), true);
+        compressionInfo.setBackgroundDrawable(background); compressionInfo.setElevation(padding / 2f);
+        compressionInfo.setOutsideTouchable(true);
+        compressionInfo.showAsDropDown(anchor, anchor.getWidth() - width, 0);
     }
 
     private void showResult(File webpFile, String webpInfos) {
