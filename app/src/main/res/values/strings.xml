@@ -1,4 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="trim_video_button">Aparar(Trim)</string>
     <!-- This is the app's name, translators please do not translate and put in the same text as English version. Developers can consider putting in their own translation, this string must be changed before publishing -->
     <string name="app_name">Stickers</string>
     <!-- Content description for the sticker pack tray image -->

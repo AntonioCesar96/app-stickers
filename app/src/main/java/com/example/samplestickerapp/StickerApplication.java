@@ -35,7 +35,7 @@ public class StickerApplication extends Application {
                 returning = false;
                 if (activity instanceof CropVideoActivity || activity instanceof SplashActivity) return;
                 CompressionJob pending = CompressionJob.pending(StickerApplication.this);
-                if (pending != null) {
+                if (pending != null && pending.shouldRestoreAutomatically(StickerApplication.this)) {
                     try {
                         activity.startActivity(pending.screen(activity).addFlags(
                                 Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));

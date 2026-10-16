@@ -88,6 +88,7 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
 
         // Cria uma nova instância do ExoPlayer
         player = new SimpleExoPlayer.Builder(this).build();
+        player.setVolume(0f);
 
         // Configura o PlayerView
         PlayerView playerView = findViewById(R.id.player_view);
@@ -279,28 +280,21 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
             outputDir = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         }
 
-        // 3. Converte milissegundos para segundos com precisão de três casas decimais
-        double startSec = currentStartMs / 1000.0;
-        double durationSec = (currentEndMs - currentStartMs) / 1000.0;
-
-        // 4. Monta comando FFmpeg
-        //    -y : sobrescreve sem perguntar
-        //    -ss : ponto inicial
-        //    -t  : duração a partir de start
-        //    -c copy : copia os streams sem re-encode (mais rápido e sem perda)
-        String ffmpegCommand = String.format(
-                Locale.US,
-                "-y -ss %.3f -i \"%s\" -t %.3f -c copy \"%s\"",
-                startSec,
-                inputPath,
-                durationSec,
-                outputPath
-        );
-
-        FFmpegKit.executeAsync(ffmpegCommand, session -> {
+        if (currentStartMs < 0 || currentEndMs <= currentStartMs || currentEndMs > videoDuration) {
+            Toast.makeText(this, "Selecione um intervalo válido do vídeo.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        showRangeButton.setEnabled(false);
+        showRangeButton.setText("Preparando vídeo…");
+        // Re-encode to discard keyframe preroll and give the looping preview a zero-based timeline.
+        FFmpegKit.executeWithArgumentsAsync(VideoTrim.arguments(videoFile, outputDir,
+                currentStartMs, currentEndMs), session -> {
             ReturnCode returnCode = session.getReturnCode();
             if (ReturnCode.isSuccess(returnCode)) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    showRangeButton.setEnabled(true);
+                    showRangeButton.setText(R.string.trim_video_button);
                     Intent intent = new Intent(this, CropVideoActivity.class);
                     intent.putExtra("sticker_pack", stickerPack);
                     intent.putExtra("file_path", outputPath);
@@ -309,7 +303,12 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
             } else {
                 String failLog = session.getAllLogsAsString();
                 Log.e("FFmpegKit", "Erro ao cortar vídeo: " + failLog);
-                runOnUiThread(() -> Toast.makeText(CustomVideoRangeActivity.this, "Falha ao cortar vídeo. Veja o log para detalhes.", Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    showRangeButton.setEnabled(true);
+                    showRangeButton.setText(R.string.trim_video_button);
+                    Toast.makeText(CustomVideoRangeActivity.this, "Falha ao cortar vídeo. Veja o log para detalhes.", Toast.LENGTH_LONG).show();
+                });
             }
         });
     }

@@ -23,6 +23,42 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 public class BackgroundCompressionTest {
+    @Test public void errorsAndDismissedEditorsDoNotHijackAppReturn() throws Exception {
+        CompressionJob previous = CompressionJob.pending(context);
+        assertTrue("Do not interrupt a running conversion", previous == null || !previous.running());
+        android.content.SharedPreferences prefs = context.getSharedPreferences("compression_jobs", 0);
+        String previousDismissed = prefs.getString("dismissedEditor", null);
+        CompressionJob first = null, second = null;
+        try {
+            first = CompressionJob.create(context, input(.1), new Rect(0, 0, 512, 512),
+                    512, false, "1", "12", "55", "6");
+            assertTrue(first.shouldRestoreAutomatically(context));
+            first.data.put("status", "error"); first.save();
+            assertFalse(CompressionJob.pending(context).shouldRestoreAutomatically(context));
+            first.data.put("status", "done"); first.save();
+            assertTrue(first.shouldRestoreAutomatically(context));
+            first.dismissEditor(context);
+            assertFalse(CompressionJob.load(context, first.id).shouldRestoreAutomatically(context));
+            first.data.put("status", "running"); first.save();
+            assertFalse("Service checkpoint must not overwrite explicit exit",
+                    CompressionJob.load(context, first.id).shouldRestoreAutomatically(context));
+            assertNotNull("Notification target and durable state must remain available",
+                    CompressionJob.load(context, first.id).screen(context));
+            first.data.put("status", "done"); first.save();
+            second = CompressionJob.create(context, input(.1), new Rect(0, 0, 512, 512),
+                    512, false, "1", "12", "55", "6");
+            assertTrue("A new conversion still restores automatically", second.shouldRestoreAutomatically(context));
+        } finally {
+            for (CompressionJob job : new CompressionJob[]{first, second}) if (job != null) {
+                job.data.put("status", "error"); job.save(); CompressionJob.consume(context, job.id);
+            }
+            android.content.SharedPreferences.Editor edit = prefs.edit();
+            if (previous != null) edit.putString("pending", previous.id); else edit.remove("pending");
+            if (previousDismissed != null) edit.putString("dismissedEditor", previousDismissed);
+            else edit.remove("dismissedEditor");
+            edit.commit();
+        }
+    }
     @Test public void extraQualityAndSharpnessFallbacksResumeAndProduceValidNativeWebp() throws Exception {
         CompressionJob previous = CompressionJob.pending(context);
         assertTrue("Do not interrupt a user's running compression", previous == null || !previous.running());

@@ -121,6 +121,15 @@ final class CompressionJob {
 
     boolean running() { return "running".equals(data.optString("status")); }
     boolean done() { return "done".equals(data.optString("status")); }
+    boolean shouldRestoreAutomatically(Context context) {
+        return !id.equals(context.getSharedPreferences(PREFS, 0).getString("dismissedEditor", null))
+                && (running() || done());
+    }
+
+    void dismissEditor(Context context) {
+        // Separate from service checkpoints so a concurrent encode cannot overwrite this choice.
+        context.getSharedPreferences(PREFS, 0).edit().putString("dismissedEditor", id).commit();
+    }
     int count() { return data.optBoolean("exodia") ? 4 : 1; }
     File result(int index) {
         return new File(directory, count() == 1 ? "output_cropped.webp" : "output_exodia_" + index + ".webp");

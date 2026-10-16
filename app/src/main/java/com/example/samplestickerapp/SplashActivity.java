@@ -36,7 +36,8 @@ public class SplashActivity extends BaseActivity {
         ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
         CompressionJob pending = CompressionJob.pending(this);
         try {
-            startActivity(pending == null ? new Intent(this, EntryActivity.class) : pending.screen(this));
+            startActivity(pending == null || !pending.shouldRestoreAutomatically(this)
+                    ? new Intent(this, EntryActivity.class) : pending.screen(this));
         } catch (Exception e) {
             startActivity(new Intent(this, EntryActivity.class));
         }

@@ -180,6 +180,7 @@ public class CropVideoActivity extends AppCompatActivity {
 
         videoView.setVideoPath(videoFile.getAbsolutePath());
         videoView.setOnPreparedListener(mp -> {
+            mp.setVolume(0f, 0f);
             mp.setLooping(!gifSource);
 
             videoOriginalWidth = gifSource ? getIntent().getIntExtra(GifMedia.WIDTH, mp.getVideoWidth()) : mp.getVideoWidth();
@@ -773,10 +774,19 @@ public class CropVideoActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            finish();
+            onBackPressed();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override public void onBackPressed() {
+        CompressionJob job = CompressionJob.load(this, jobId);
+        if (job != null) {
+            try { job.dismissEditor(this); }
+            catch (Exception e) { android.util.Log.w("CompressionJob", "Fechar editor", e); }
+        }
+        super.onBackPressed();
     }
 }
