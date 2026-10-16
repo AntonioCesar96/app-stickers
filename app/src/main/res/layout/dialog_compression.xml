@@ -18,7 +18,7 @@
  <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Ajustar próxima tentativa" android:textStyle="bold" android:textSize="14sp" android:textColor="#0F172A" />
  <androidx.appcompat.widget.AppCompatButton android:id="@+id/use_current_settings" style="@style/Widget.AppCompat.Button.Borderless" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="0dp" android:paddingLeft="8dp" android:paddingRight="8dp" android:text="Usar atuais" android:textAllCaps="false" android:textSize="12sp" android:textColor="#00796B" />
  </LinearLayout>
-<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:visibility="gone">
  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Redução" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/compression_suggestion_mode" />
  <Spinner android:id="@+id/compression_suggestion_mode" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:layout_marginStart="8dp" />
  <androidx.appcompat.widget.AppCompatButton android:id="@+id/apply_compression_suggestion" style="@style/Widget.AppCompat.Button.Borderless" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="0dp" android:text="Sugerir" android:textAllCaps="false" android:textSize="12sp" android:textColor="#00796B" />

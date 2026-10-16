@@ -1,6 +1,6 @@
 # Compressão WebP: tentativas, parâmetros e controle em background
 
-Última atualização: 2026-10-16_17-23 (America/Cuiaba).
+Última atualização: 2026-10-16_17-43 (America/Cuiaba).
 
 ## Funcionamento e limite
 
@@ -18,7 +18,7 @@ O parâmetro de nitidez define a resolução intermediária de detalhes, seguida
 
 A toolbar do crop de vídeo/GIF não possui mais a opção Edit/Editar. Foram removidos seu botão e o diálogo antigo de opções; os ajustes de uma conversão existente continuam no diálogo de compressão.
 
-O formulário tem o Spinner **Redução** com **Agressivo, Moderado e Suave**, inicialmente Moderado, e o botão **Sugerir**. Mudar a opção preenche uma sugestão; Sugerir permite reaplicar a mesma opção com os dados mais recentes. A seleção inicial/restaurada não modifica os campos automaticamente. O modo escolhido e os rascunhos dos campos são conservados na recriação da Activity.
+O conjunto **Redução**, Spinner **Agressivo, Moderado e Suave** e botão **Sugerir** está oculto por `visibility="gone"` no container do layout. Não ocupa espaço nem recebe interação do usuário. A implementação de sugestões permanece no código para eventual reativação; os campos manuais, Usar atuais e Reiniciar continuam disponíveis. As regras abaixo descrevem o mecanismo implementado, atualmente sem acesso visual.
 
 `CompressionSuggestion` usa o tamanho da última tentativa concluída e seus parâmetros, limitados pelos parâmetros da tentativa atual para não desfazer reduções já em uso. Sem tamanho positivo não altera os campos; se já está em até 512000 bytes, mantém os campos. O cálculo é uma heurística, não uma garantia de tamanho final ou modelo treinado.
 
