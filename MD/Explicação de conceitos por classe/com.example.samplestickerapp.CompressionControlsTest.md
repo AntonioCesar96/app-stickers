@@ -1,10 +1,12 @@
 # CompressionControlsTest: integrar diálogo, serviço e FFmpeg
 
-Última atualização: 2026-10-16_10-40 (America/Cuiaba).
+Última atualização: 2026-10-16_10-54 (America/Cuiaba).
 
 Código: `app/src/androidTest/java/com/example/samplestickerapp/CompressionControlsTest.java`.
 
 ## O que a instrumentação acrescenta
+
+`organizedDialogUses95PercentWidthAndKeepsFieldsVisible` acrescenta um cenário exclusivamente visual: gera um pequeno preview, prepara metadados sintéticos de tarefa cancelada e abre o diálogo. Mede o decor em 95% da largura da tela e verifica região global visível para os cinco campos e as ações. Captura `compression-dialog-organized.png` para revisão. Os 664,1 KB mostrados nesse cenário são dados de apresentação, não resultado de um novo benchmark de conversão.
 
 Um teste instrumentado roda no Android e pode interagir com Activities e o codec nativo. Aqui ele verifica o contrato entre formulário, comando persistido, interrupção e resultado. Testes unitários não mostram se um botão realmente mantém o diálogo aberto ou se o FFmpeg interrompido terminou antes da nova saída.
 

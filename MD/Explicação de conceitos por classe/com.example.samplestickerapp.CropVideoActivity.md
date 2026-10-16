@@ -1,6 +1,6 @@
 # CropVideoActivity: edição, controle e salvamento de figurinhas
 
-Última atualização: 2026-10-16_10-40 (America/Cuiaba).
+Última atualização: 2026-10-16_10-54 (America/Cuiaba).
 
 Código: `app/src/main/java/com/example/samplestickerapp/CropVideoActivity.java`.
 
@@ -33,6 +33,10 @@ O VideoView é silenciado no callback de preparação. MP4 usa looping nativo. G
 `currentAttempt` informa os valores em uso. `lastAttempt` informa os parâmetros e bytes de uma conversão concluída, mesmo que ainda exceda o alvo. O diálogo não associa um tamanho parcial à próxima configuração do algoritmo.
 
 ## Diálogo e edição manual
+
+O layout foi reorganizado para distinguir hierarquia de informação: cabeçalho, resumo, cartão da última tentativa, formulário e ações. `last_attempt_size` mostra bytes convertidos para KB separadamente dos metadados. Os textos de estado foram resumidos para evitar repetição da tentativa atual e da mensagem terminal. Campos usam tamanhos explícitos em sp e uma grade compacta, preservando a escala de fonte configurada no aparelho.
+
+A largura nominal de 95% podia coexistir com insets do drawable padrão, reduzindo a área branca visível. O callback de exibição agora usa um GradientDrawable próprio e zera o padding do decor antes de dimensionar a janela. Não se muda o crop nem o algoritmo: esta decisão trata da geometria da janela. O teste no dispositivo verifica a largura e a região visível dos campos e ações.
 
 `createProgressDialog` usa `dialog_compression.xml`, exclusivo de vídeo/GIF. Cabeçalho e ações de reinício/cancelamento ficam fora da área rolável. O diálogo ocupa 95% da largura e 85% da altura para acomodar métricas e formulário; o corpo rola quando necessário. O diálogo compartilhado por imagens permanece separado.
 

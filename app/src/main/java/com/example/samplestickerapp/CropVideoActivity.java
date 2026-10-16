@@ -366,19 +366,25 @@ public class CropVideoActivity extends AppCompatActivity {
                 progress.setIndeterminate(value <= 0);
                 if (!converting) progress.setIndeterminate(false);
                 progress.setMax(100);
+                progress.setVisibility(converting ? View.VISIBLE : View.GONE);
                 progress.setProgress(value);
                 TextView attempts = progressDialog.findViewById(R.id.attempts_tv);
-                attempts.setText(job.data.optString("message"));
+                org.json.JSONObject active = job.data.optJSONObject("currentAttempt");
+                attempts.setText(converting && active != null
+                        ? "Tentativa #" + active.optInt("number") + " · figurinha " + active.optInt("quadrant") + "/" + job.count()
+                        + "\n" + attemptSettings(active) + (value > 0 ? " · " + value + "%" : "")
+                        : job.done() ? "Resultado pronto para revisar e salvar."
+                        : "cancelled".equals(job.data.optString("status")) ? "Processo parado. Você pode ajustar e reiniciar."
+                        : job.data.optString("message"));
                 ((TextView) progressDialog.findViewById(R.id.compression_title)).setText(job.running() ? "Criando figurinha"
                         : job.done() ? "Figurinha pronta" : "cancelled".equals(job.data.optString("status")) ? "Compressão cancelada" : "Falha na compressão");
                 TextView details = progressDialog.findViewById(R.id.webp_info_tv);
                 org.json.JSONObject last = job.data.optJSONObject("lastAttempt");
                 org.json.JSONObject current = job.data.optJSONObject("currentAttempt");
-                details.setText((current == null ? "" : (converting ? "Tentativa atual: " : "Última iniciada: ") + attemptSettings(current) + "\n\n")
-                        + (last == null ? "Ainda não há uma tentativa concluída."
-                        : String.format(Locale.getDefault(), "Última concluída (#%d): %.2f KB / 500 KB\n%s",
-                        last.optInt("number"), last.optLong("bytes") / 1024.0, attemptSettings(last)))
-                        + (value > 0 && converting ? "\nProgresso atual: " + value + "%" : ""));
+                ((TextView) progressDialog.findViewById(R.id.last_attempt_size)).setText(last == null ? "Aguardando…"
+                        : String.format(Locale.getDefault(), "%.1f KB / 500 KB", last.optLong("bytes") / 1024.0));
+                details.setText(last == null ? "O tamanho aparecerá ao concluir uma tentativa."
+                        : "#" + last.optInt("number") + " · " + attemptSettings(last));
                 try {
                     org.json.JSONObject control = job.control();
                     boolean waiting = job.running() && control.optInt("revision") > job.data.optInt("appliedRevision");
@@ -388,7 +394,8 @@ public class CropVideoActivity extends AppCompatActivity {
                     TextView action = progressDialog.findViewById(R.id.compression_action_status);
                     action.setText(waiting ? cancelling ? "Cancelando a tentativa atual…" : "Interrompendo para reiniciar com seus valores…"
                             : !compressionControlError.isEmpty() ? compressionControlError
-                            : job.running() ? "" : job.data.optString("message"));
+                            : "");
+                    action.setVisibility(action.getText().length() == 0 ? View.GONE : View.VISIBLE);
                 } catch (Exception e) { android.util.Log.w("CompressionJob", "Leitura dos controles", e); }
             }
         }
@@ -467,6 +474,11 @@ public class CropVideoActivity extends AppCompatActivity {
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.DKGRAY);
             android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
             if (dialog.getWindow() != null) {
+                android.graphics.drawable.GradientDrawable surface = new android.graphics.drawable.GradientDrawable();
+                surface.setColor(Color.WHITE);
+                surface.setCornerRadius(16 * metrics.density);
+                dialog.getWindow().setBackgroundDrawable(surface);
+                dialog.getWindow().getDecorView().setPadding(0, 0, 0, 0);
                 dialog.getWindow().setLayout((int) (metrics.widthPixels * .95), (int) (metrics.heightPixels * .85));
                 dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
             }
@@ -497,7 +509,7 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private static String attemptSettings(org.json.JSONObject settings) {
-        return String.format(Locale.getDefault(), "Qualidade %s • %s FPS • compressão %s\nVelocidade %s× • nitidez %s",
+        return String.format(Locale.getDefault(), "Q%s · %s FPS · compressão %s\n%s× · nitidez %s",
                 settings.optString("quality"), settings.optString("fps"), settings.optString("compression"),
                 settings.optString("speed"), settings.optString("detailSize", "512"));
     }

@@ -1,53 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="center_vertical" android:orientation="horizontal">
-            <TextView android:id="@+id/compression_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
-                android:text="Criando figurinha" android:textStyle="bold" android:textSize="20sp" />
-            <ImageButton android:id="@+id/compression_info" android:layout_width="48dp" android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_dialog_info"
-                android:contentDescription="Informações sobre a compressão" />
-        </LinearLayout>
-        <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-        <ProgressBar android:id="@+id/progress_bar" style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent" android:layout_height="wrap_content" android:indeterminate="true" />
-        <TextView android:id="@+id/attempts_tv" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:textSize="14sp" />
-        <TextView android:id="@+id/webp_info_tv" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="12dp" android:textSize="14sp" android:textIsSelectable="true" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" android:text="Valores para reiniciar a busca" android:textStyle="bold" />
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Qualidade (0–100)" android:labelFor="@id/retry_quality" />
-                <EditText android:id="@+id/retry_quality" android:layout_width="match_parent" android:layout_height="48dp" android:inputType="number" android:selectAllOnFocus="true" />
-            </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="FPS (1–60)" android:labelFor="@id/retry_fps" />
-                <EditText android:id="@+id/retry_fps" android:layout_width="match_parent" android:layout_height="48dp" android:inputType="number" android:selectAllOnFocus="true" />
-            </LinearLayout>
-        </LinearLayout>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Compressão (0–6)" android:labelFor="@id/retry_compression" />
-                <EditText android:id="@+id/retry_compression" android:layout_width="match_parent" android:layout_height="48dp" android:inputType="number" android:selectAllOnFocus="true" />
-            </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Velocidade (> 0)" android:labelFor="@id/retry_speed" />
-                <EditText android:id="@+id/retry_speed" android:layout_width="match_parent" android:layout_height="48dp" android:inputType="numberDecimal" android:selectAllOnFocus="true" />
-            </LinearLayout>
-        </LinearLayout>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Nitidez (1–512; saída sempre 512×512)" android:labelFor="@id/retry_detail" />
-        <EditText android:id="@+id/retry_detail" android:layout_width="match_parent" android:layout_height="48dp" android:inputType="number" android:selectAllOnFocus="true" />
-        <Button android:id="@+id/use_current_settings" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Copiar valores da tentativa atual" />
-        <TextView android:id="@+id/compression_action_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="14sp" android:accessibilityLiveRegion="polite" />
-        </LinearLayout>
-        </ScrollView>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <Button android:id="@+id/retry_compression_button" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Reiniciar" android:textAllCaps="false" android:textSize="14sp" />
-            <Button android:id="@+id/cancel_compression" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Cancelar" android:textAllCaps="false" android:textSize="14sp" />
-        </LinearLayout>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+ <TextView android:id="@+id/compression_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Compressão" android:textSize="18sp" android:textStyle="bold" android:textColor="#0F172A" />
+ <ImageButton android:id="@+id/compression_info" android:layout_width="48dp" android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_dialog_info" android:tint="#00796B" android:contentDescription="Informações sobre a compressão" />
+ </LinearLayout>
+ <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="false">
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+ <ProgressBar android:id="@+id/progress_bar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:layout_marginTop="4dp" android:indeterminate="true" />
+ <TextView android:id="@+id/attempts_tv" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:layout_marginBottom="8dp" android:textSize="12sp" android:textColor="#64748B" />
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp" android:background="#F1F5F9">
+ <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ÚLTIMA TENTATIVA CONCLUÍDA" android:textSize="10sp" android:textStyle="bold" android:textColor="#64748B" />
+ <TextView android:id="@+id/last_attempt_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="20sp" android:textStyle="bold" android:textColor="#0F172A" />
+ <TextView android:id="@+id/webp_info_tv" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="12sp" android:textColor="#475569" android:textIsSelectable="true" />
+ </LinearLayout>
+ <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center_vertical" android:orientation="horizontal">
+ <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Ajustar próxima tentativa" android:textStyle="bold" android:textSize="14sp" android:textColor="#0F172A" />
+ <androidx.appcompat.widget.AppCompatButton android:id="@+id/use_current_settings" style="@style/Widget.AppCompat.Button.Borderless" android:layout_width="wrap_content" android:layout_height="48dp" android:minWidth="0dp" android:paddingLeft="8dp" android:paddingRight="8dp" android:text="Usar atuais" android:textAllCaps="false" android:textSize="12sp" android:textColor="#00796B" />
+ </LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingRight="8dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Qualidade (0–100)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_quality" />
+  <EditText android:id="@+id/retry_quality" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
+  </LinearLayout><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingRight="8dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="FPS (1–60)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_fps" />
+  <EditText android:id="@+id/retry_fps" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
+  </LinearLayout></LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal"><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingRight="8dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Compressão (0–6)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_compression" />
+  <EditText android:id="@+id/retry_compression" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
+  </LinearLayout><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingRight="8dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Velocidade (×)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_speed" />
+  <EditText android:id="@+id/retry_speed" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="numberDecimal" android:selectAllOnFocus="true" android:singleLine="true" />
+  </LinearLayout></LinearLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="44dp" android:gravity="center_vertical" android:orientation="horizontal">
+<TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Nitidez (1–512)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_detail" />
+<EditText android:id="@+id/retry_detail" android:layout_width="104dp" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:gravity="center" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
+</LinearLayout>
+<TextView android:id="@+id/compression_action_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="#B91C1C" android:accessibilityLiveRegion="polite" />
+ </LinearLayout>
+ </ScrollView>
+ <androidx.appcompat.widget.AppCompatButton android:id="@+id/retry_compression_button" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:text="Reiniciar com estes valores" android:textAllCaps="false" android:textSize="14sp" android:backgroundTint="#00796B" android:textColor="#FFFFFF" />
+ <androidx.appcompat.widget.AppCompatButton android:id="@+id/cancel_compression" style="@style/Widget.AppCompat.Button.Borderless" android:layout_width="match_parent" android:layout_height="44dp" android:text="Cancelar compressão" android:textAllCaps="false" android:textSize="13sp" android:textColor="#B91C1C" />
 </LinearLayout>

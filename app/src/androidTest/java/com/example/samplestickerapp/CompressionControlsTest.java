@@ -19,6 +19,54 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 public class CompressionControlsTest {
+    @Test public void organizedDialogUses95PercentWidthAndKeepsFieldsVisible() throws Exception {
+        CompressionJob previous = CompressionJob.pending(context);
+        for (android.app.ActivityManager.RunningServiceInfo service :
+                context.getSystemService(android.app.ActivityManager.class).getRunningServices(Integer.MAX_VALUE))
+            assertNotEquals(CompressionService.class.getName(), service.service.getClassName());
+        context.getSharedPreferences("compression_jobs", 0).edit().remove("pending").commit();
+        CompressionJob job = null;
+        CropVideoActivity screen = null;
+        File input = new File(context.getCacheDir(), "organized-dialog-test.mp4");
+        try {
+            Session fixture = FFmpegKit.executeWithArguments(new String[]{"-y", "-f", "lavfi", "-i",
+                    "testsrc2=s=128x128:r=12:d=1", "-c:v", "libx264", "-preset", "ultrafast", input.getAbsolutePath()});
+            assertTrue(ReturnCode.isSuccess(fixture.getReturnCode()));
+            StickerPack pack = new StickerPack("layout-test", "Layout", "Test", "tray.png", "", "", "", "", "1", false, true);
+            pack.setStickers(new ArrayList<>());
+            Intent launch = new Intent(context, CropVideoActivity.class).putExtra("file_path", input.getAbsolutePath()).putExtra("sticker_pack", pack);
+            job = CompressionJob.create(context, launch, new Rect(0, 0, 512, 512), 512, false, "1", "12", "55", "6");
+            // Synthetic finished-attempt metadata: this test checks layout, not codec output.
+            org.json.JSONObject metrics = new org.json.JSONObject().put("number", 8).put("quadrant", 1).put("quality", 48)
+                    .put("fps", 12).put("compression", 6).put("speed", 1).put("detailSize", 512).put("bytes", 680000);
+            job.data.put("status", "cancelled").put("message", "Compressão cancelada.")
+                    .put("lastAttempt", metrics).put("currentAttempt", metrics); job.save();
+            screen = (CropVideoActivity) instrumentation.startActivitySync(job.screen(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            CropVideoActivity editor = screen;
+            Thread.sleep(1500);
+            instrumentation.runOnMainSync(() -> editor.findViewById(R.id.compression_status).performClick());
+            Thread.sleep(500);
+            Bitmap screenshot = instrumentation.getUiAutomation().takeScreenshot();
+            try (FileOutputStream out = new FileOutputStream(new File(context.getCacheDir(), "compression-dialog-organized.png"))) {
+                screenshot.compress(Bitmap.CompressFormat.PNG, 100, out);
+            } finally { screenshot.recycle(); }
+            instrumentation.runOnMainSync(() -> {
+                assertTrue(editor.progressDialog.isShowing());
+                int expected = (int) (editor.getResources().getDisplayMetrics().widthPixels * .95);
+                assertEquals(expected, editor.progressDialog.getWindow().getDecorView().getWidth(), 2);
+                for (int id : new int[]{R.id.retry_quality, R.id.retry_fps, R.id.retry_compression, R.id.retry_speed,
+                        R.id.retry_detail, R.id.retry_compression_button, R.id.cancel_compression})
+                    assertTrue("Control must be visible: " + id, editor.progressDialog.findViewById(id).getGlobalVisibleRect(new Rect()));
+            });
+        } finally {
+            CropVideoActivity editor = screen;
+            instrumentation.runOnMainSync(() -> { if (editor != null) editor.finish(); });
+            if (job != null) CompressionJob.consume(context, job.id);
+            android.content.SharedPreferences.Editor edit = context.getSharedPreferences("compression_jobs", 0).edit();
+            if (previous != null) edit.putString("pending", previous.id); else edit.remove("pending");
+            edit.commit(); input.delete();
+        }
+    }
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
     private final Context context = instrumentation.getTargetContext();
 
@@ -72,8 +120,8 @@ public class CompressionControlsTest {
             instrumentation.runOnMainSync(() -> {
                 assertTrue(editor.progressDialog.isShowing());
                 String text = ((TextView) editor.progressDialog.findViewById(R.id.webp_info_tv)).getText().toString();
-                assertTrue(text, text.contains("Última concluída"));
-                assertTrue(text, text.contains("KB / 500 KB"));
+                assertTrue(text, text.contains("compressão"));
+                assertTrue(((TextView) editor.progressDialog.findViewById(R.id.last_attempt_size)).getText().toString().contains("KB / 500 KB"));
                 assertFalse(text.contains("Você pode minimizar"));
                 values(editor, "101", "8", "128");
                 editor.progressDialog.findViewById(R.id.retry_compression_button).performClick();
