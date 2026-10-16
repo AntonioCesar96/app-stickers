@@ -1,6 +1,6 @@
 # CompressionControlsTest: integrar diálogo, serviço e FFmpeg
 
-Última atualização: 2026-10-16_11-04 (America/Cuiaba).
+Última atualização: 2026-10-16_17-23 (America/Cuiaba).
 
 Código: `app/src/androidTest/java/com/example/samplestickerapp/CompressionControlsTest.java`.
 
@@ -9,6 +9,10 @@ Código: `app/src/androidTest/java/com/example/samplestickerapp/CompressionContr
 `nativeEncoderPublishesMeasuredIntermediatePercentage` gera um vídeo de teste, inicia o serviço real e aguarda um percentual estritamente entre 0 e 99, depois cancela de forma coordenada. Isso verifica o caminho nativo de produção do progresso, sem precisar concluir um encode longo. O cenário visual também prepara 42% sintéticos e verifica barra determinada e texto iguais, capturando a apresentação. Os 42% da captura não são uma amostra da conversão nativa: são uma verificação separada da interface.
 
 `organizedDialogUses95PercentWidthAndKeepsFieldsVisible` acrescenta um cenário exclusivamente visual: gera um pequeno preview, prepara metadados sintéticos de tarefa cancelada e abre o diálogo. Mede o decor em 95% da largura da tela e verifica região global visível para os cinco campos e as ações. Captura `compression-dialog-organized.png` para revisão. Os 664,1 KB mostrados nesse cenário são dados de apresentação, não resultado de um novo benchmark de conversão.
+
+Esse cenário também valida a sugestão por intensidade. Exige quatro botões na toolbar do crop, correspondendo à remoção de Edit, e três itens no Spinner. Antes de interagir, o campo Q48 deve continuar intacto: a criação do Spinner não pode disparar uma proposta e apagar o rascunho. Seleciona Suave, aguarda a thread principal e aplica Sugerir; depois seleciona Agressivo e exige qualidade menor. Confere o registro cancelado ainda cancelado, demonstrando que aplicar uma proposta não envia reinício.
+
+waitForIdleSync permite o Android processar a mudança de seleção do Spinner antes das asserções. O botão Sugerir é acionado para tornar explícita a reaplicação da opção atual. Não se lê o campo privado jobId; a identidade vem do extra público da Intent da tela. Depois o cenário grava 42% sintéticos para testar a apresentação em execução e produz outra captura com valores sugeridos. Os controles inferiores pertencem à área rolável e podem exigir rolagem quando o conteúdo cresce.
 
 Um teste instrumentado roda no Android e pode interagir com Activities e o codec nativo. Aqui ele verifica o contrato entre formulário, comando persistido, interrupção e resultado. Testes unitários não mostram se um botão realmente mantém o diálogo aberto ou se o FFmpeg interrompido terminou antes da nova saída.
 
@@ -37,5 +41,7 @@ O teste não salva suas saídas no pacote do usuário. Cancelar serviço e consu
 ## Evidência, limites e exercício
 
 As capturas permitem avaliar layout, mas uma captura isolada não demonstra todas as dimensões de tela ou acessibilidade. O contador de interrupções e os metadados demonstram o fluxo exercitado, sem prometer tempo fixo para cancelamento. A qualidade visual do vídeo não é comparada por métrica perceptiva.
+
+Na tarefa dos presets foi executado apenas organizedDialogUses95PercentWidthAndKeepsFieldsVisible, aprovado em 5,771 s. Os outros métodos desta classe continuam disponíveis, mas não foram repetidos por essa alteração da interface. A suíte JVM exercita separadamente a fórmula e limites; o teste Android não comprova que toda proposta produz arquivo de até 500 KB.
 
 **Exercício:** por que comparar bytes registrados com `result.length()`? Porque uma UI poderia mostrar um tamanho antigo ou inventado apesar de a conversão produzir um arquivo diferente. Cruzar estado e artefato confere que a telemetria pertence ao resultado observado.

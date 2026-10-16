@@ -1,6 +1,6 @@
 # Compressão WebP: tentativas, parâmetros e controle em background
 
-Última atualização: 2026-10-16_11-22 (America/Cuiaba).
+Última atualização: 2026-10-16_17-23 (America/Cuiaba).
 
 ## Funcionamento e limite
 
@@ -15,6 +15,16 @@ O alvo é até 512000 bytes, apresentados como 500 KB. O serviço valida WebP co
 O parâmetro de nitidez define a resolução intermediária de detalhes, seguida de ampliação para a saída de 512×512. Um início manual em 200 não volta a 512 durante a busca; depois de esgotar a qualidade, os próximos níveis de detalhe são inferiores a 200.
 
 ## Diálogo
+
+A toolbar do crop de vídeo/GIF não possui mais a opção Edit/Editar. Foram removidos seu botão e o diálogo antigo de opções; os ajustes de uma conversão existente continuam no diálogo de compressão.
+
+O formulário tem o Spinner **Redução** com **Agressivo, Moderado e Suave**, inicialmente Moderado, e o botão **Sugerir**. Mudar a opção preenche uma sugestão; Sugerir permite reaplicar a mesma opção com os dados mais recentes. A seleção inicial/restaurada não modifica os campos automaticamente. O modo escolhido e os rascunhos dos campos são conservados na recriação da Activity.
+
+`CompressionSuggestion` usa o tamanho da última tentativa concluída e seus parâmetros, limitados pelos parâmetros da tentativa atual para não desfazer reduções já em uso. Sem tamanho positivo não altera os campos; se já está em até 512000 bytes, mantém os campos. O cálculo é uma heurística, não uma garantia de tamanho final ou modelo treinado.
+
+O excesso relativo é `1 - 512000/bytes`. A intensidade é esse excesso multiplicado por 1,35 (Agressivo), 0,85 (Moderado) ou 0,40 (Suave), limitada a 0,85. Qualidade, FPS e nitidez são reduzidos proporcionalmente. Qualidade respeita zero; FPS mantém pelo menos 12 quando a taxa de entrada da sugestão era 12 ou maior, sem aumentar valores inferiores; nitidez respeita 1. A velocidade permanece a atual, preservando o tempo do vídeo. Compressão é esforço e sobe um nível até 6, pois reduzi-la não equivale a reduzir o tamanho.
+
+Cada sugestão é calculada novamente a partir dos registros do encoder, não do resultado da sugestão anterior nem de um tamanho parcial. Selecionar outro modo substitui os valores editados nos campos de forma explícita. O usuário pode modificá-los antes de **Reiniciar com estes valores**. O Spinner e Sugerir não enviam comandos ao serviço, não cancelam e não reiniciam a tarefa em andamento. O estado automático continua evoluindo enquanto o formulário é editado.
 
 O resumo da tentativa atual sob a barra usa `Q-75 · 30 FPS · C-6 · N-512 · 1×`, sem quebra de linha forçada entre parâmetros. Q significa qualidade, C esforço de compressão e N nitidez. Essa abreviação se aplica somente ao resumo atual; os rótulos dos inputs e os metadados da última tentativa concluída mantêm seu formato.
 

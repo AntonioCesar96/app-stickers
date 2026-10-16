@@ -228,15 +228,6 @@
             android:src="@drawable/ic_pause" />
 
         <ImageButton
-            android:id="@+id/btn_opcoes"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="16dp"
-            android:background="?android:selectableItemBackgroundBorderless"
-            android:contentDescription="Editar"
-            android:src="@drawable/ic_editar" />
-
-        <ImageButton
             android:id="@+id/btn_exodia"
             android:layout_width="48dp"
             android:layout_height="48dp"

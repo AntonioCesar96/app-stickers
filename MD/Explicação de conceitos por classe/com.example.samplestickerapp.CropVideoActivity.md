@@ -1,6 +1,6 @@
 # CropVideoActivity: edição, controle e salvamento de figurinhas
 
-Última atualização: 2026-10-16_11-22 (America/Cuiaba).
+Última atualização: 2026-10-16_17-23 (America/Cuiaba).
 
 Código: `app/src/main/java/com/example/samplestickerapp/CropVideoActivity.java`.
 
@@ -22,7 +22,7 @@ O VideoView é silenciado no callback de preparação. MP4 usa looping nativo. G
 
 `onResume` inicia consultas periódicas a cada 750 ms e retoma o preview. `onPause` remove callbacks e pausa o vídeo. `onDestroy` dispensa diálogo e PopupWindow; não cancela a sessão do serviço. Isso evita referências a janelas antigas e preserva o processamento em background.
 
-`onSaveInstanceState` grava jobId e o rascunho dos campos. Um Bundle atende à recriação da tela; estado e comandos duráveis pertencem aos arquivos do job. `onNewIntent` recebe outro ID por notificação e recria a tela para não misturar campos de tarefas diferentes.
+`onSaveInstanceState` grava jobId, rascunho dos campos e suggestionMode. O modo é restaurado sem reaplicar sugestão automaticamente. Bundle atende à recriação da tela; estado e comandos duráveis pertencem aos arquivos do job. `onNewIntent` recebe outro ID por notificação e recria a tela para não misturar campos de tarefas diferentes.
 
 ## Iniciar e acompanhar
 
@@ -46,6 +46,16 @@ A largura nominal de 95% podia coexistir com insets do drawable padrão, reduzin
 
 `fillRetryFields` copia valores apenas ao criar o formulário ou por ação explícita. `readRetryDraft` lê os textos. `retryCompression` faz parse, cria `CompressionSettings`, valida duração quando conhecida e envia retry. Se a tarefa terminou, cria outro job e atualiza o ID da tela. Limpa a lista de resultados e desabilita salvar até a nova validação.
 
+## Sugestões por intensidade
+
+createProgressDialog configura o Spinner Redução com Agressivo, Moderado e Suave por ArrayAdapter. suggestionMode inicia em 1 (Moderado). O listener ignora a posição quando coincide com o estado já registrado; isso impede o callback inicial de sobrescrever retryDraft. Ao trocar de modo chama applyCompressionSuggestion. Sugerir reaplica explicitamente a posição atual quando chega outra medição.
+
+applyCompressionSuggestion carrega uma fotografia do job no clique e exige lastAttempt com bytes positivos. Se o arquivo já cabe em 512000 bytes, mostra orientação e mantém os inputs. settingsFromAttempt converte os objetos JSON de última/atual em CompressionSettings, usando defaults compatíveis com a tela e os limites do modelo. A classe CompressionSuggestion recebe a medição e os dois vetores para gerar a proposta.
+
+A Activity escreve qualidade, FPS, esforço, velocidade e detalhe nos campos e atualiza retryDraft. A mensagem mostra KB e percentual acima do alvo e pede revisar/reiniciar. Esse método não grava comando do job nem inicia serviço: selecionar modo só muda o rascunho. A política de reduzir qualidade/FPS/detalhe por excesso está na classe pura, separada de Views e ciclo de vida. A velocidade vem da conversão atual; esforço pode subir, pois não é um parâmetro de qualidade.
+
+O mesmo canal persistente compressionControlError mantém a mensagem de orientação visível nos polls seguintes. A nomenclatura do campo é anterior ao recurso; ele agora também transporta esse feedback, além de erros. Uma nova sugestão substitui manualmente os inputs, mas atualizações normais de progresso não o fazem.
+
 `showControlError` mantém uma mensagem de erro de campo, em vez de deixá-la desaparecer no poll seguinte. Um número inválido não deve interromper a sessão. Os controles ficam temporariamente indisponíveis enquanto o comando aguarda aplicação, mas cancelar continua possível durante a espera por reinício.
 
 O listener de Cancelar grava o comando, sem dispensar o diálogo. Quando o serviço publica cancelled, o título e o status mudam, o progresso deixa de ser indeterminado e Reiniciar volta a ficar disponível. Fechar apenas esconde o diálogo; Minimizar manda o app para background.
@@ -60,7 +70,7 @@ Essa separação é de apresentação, não de algoritmo: esconder uma explicaç
 
 `showResult` monta previews e descrição de uma ou quatro saídas; `setupController` usa Fresco com animação automática e URI com parâmetro de atualização. `outputDirectory` resolve o diretório do job, com fallback para temporários. `getBytes` lê arquivos para operações existentes de validação e cópia.
 
-`openDialogOpcoesVideo` e `resetInputs` mantêm o diálogo de exportação anterior à criação. Ele é distinto do formulário que controla uma busca já iniciada.
+O botão Edit/Editar e os métodos openDialogOpcoesVideo/resetInputs foram removidos. A toolbar mantém Salvar, Pausar, Exodia e Preview. O diálogo antigo dialog_custom não foi apagado porque é um recurso que pode ser compartilhado por outros fluxos; apenas a entrada da tela de crop de vídeo foi removida.
 
 `enviarWhatsapp` recarrega o pacote, verifica capacidade e compatibilidade de animação e pode pedir outro pacote. `moverFigurinhasParaPasta` valida limites do WebP, copia arquivos, atualiza catálogo e registra as figurinhas adicionadas. Somente depois consome o job e cancela sua notificação. Isso é uma publicação explícita, diferente de apenas gerar um candidato.
 

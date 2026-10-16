@@ -93,9 +93,30 @@ public class CompressionControlsTest {
                 assertTrue(editor.progressDialog.isShowing());
                 int expected = (int) (editor.getResources().getDisplayMetrics().widthPixels * .95);
                 assertEquals(expected, editor.progressDialog.getWindow().getDecorView().getWidth(), 2);
+                assertEquals(4, ((android.view.ViewGroup) editor.findViewById(R.id.bottom_buttons)).getChildCount());
+                android.widget.Spinner modes = editor.progressDialog.findViewById(R.id.compression_suggestion_mode);
+                assertEquals(3, modes.getCount());
+                assertEquals("48", ((EditText) editor.progressDialog.findViewById(R.id.retry_quality)).getText().toString());
+                modes.setSelection(2);
                 for (int id : new int[]{R.id.retry_quality, R.id.retry_fps, R.id.retry_compression, R.id.retry_speed,
                         R.id.retry_detail, R.id.retry_compression_button, R.id.cancel_compression})
                     assertTrue("Control must be visible: " + id, editor.progressDialog.findViewById(id).getGlobalVisibleRect(new Rect()));
+            });
+            instrumentation.waitForIdleSync();
+            final int[] gentle = new int[1];
+            instrumentation.runOnMainSync(() -> {
+                editor.progressDialog.findViewById(R.id.apply_compression_suggestion).performClick();
+                gentle[0] = Integer.parseInt(((EditText) editor.progressDialog.findViewById(R.id.retry_quality)).getText().toString());
+                assertTrue(gentle[0] < 48);
+                ((android.widget.Spinner) editor.progressDialog.findViewById(R.id.compression_suggestion_mode)).setSelection(0);
+            });
+            instrumentation.waitForIdleSync();
+            instrumentation.runOnMainSync(() -> {
+                editor.progressDialog.findViewById(R.id.apply_compression_suggestion).performClick();
+                int aggressive = Integer.parseInt(((EditText) editor.progressDialog.findViewById(R.id.retry_quality)).getText().toString());
+                assertTrue(aggressive < gentle[0]);
+                assertEquals("Suggestion must not restart the cancelled job", "cancelled", CompressionJob.load(context,
+                        editor.getIntent().getStringExtra(CompressionJob.EXTRA_ID)).data.optString("status"));
             });
             job.data.put("status", "running").put("progress", 42); job.save();
             Thread.sleep(1000);

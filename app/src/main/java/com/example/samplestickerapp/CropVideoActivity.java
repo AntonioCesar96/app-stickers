@@ -68,8 +68,8 @@ public class CropVideoActivity extends AppCompatActivity {
     private String extensaoArquivoOriginal;
     private int videoOriginalWidth, videoOriginalHeight;
     File videoFile, fileCropped;
-    ImageButton btnPause, btnSalvar, btnCrop, btnExodia, btnOpcoes;
-    EditText inputVelocidade, inputVelocidadeFps, inputCompressao, inputQuality, inputDuracao;
+    ImageButton btnPause, btnSalvar, btnCrop, btnExodia;
+    private int suggestionMode = 1;
     String velocidade = "1", velocidadeFps = "30", compression = "6", quality = "75", duracao = "0";
     AlertDialog progressDialog;
     FrameLayout stickerContainerNaoExodia;
@@ -107,6 +107,7 @@ public class CropVideoActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) retryDraft = savedInstanceState.getStringArray("compressionDraft");
+        if (savedInstanceState != null) suggestionMode = savedInstanceState.getInt("suggestionMode", 1);
         jobId = savedInstanceState == null ? getIntent().getStringExtra(CompressionJob.EXTRA_ID)
                 : savedInstanceState.getString(CompressionJob.EXTRA_ID);
         if (jobId != null) {
@@ -145,7 +146,6 @@ public class CropVideoActivity extends AppCompatActivity {
         btnPause = findViewById(R.id.btn_pause);
         btnSalvar = findViewById(R.id.btn_salvar);
         btnSalvar.setEnabled(false);
-        btnOpcoes = findViewById(R.id.btn_opcoes);
         videoContainer = findViewById(R.id.video_container);
         bottomButtons = findViewById(R.id.bottom_buttons);
         stickerContainerNaoExodia = findViewById(R.id.stickerContainerNaoExodia);
@@ -163,7 +163,6 @@ public class CropVideoActivity extends AppCompatActivity {
             exodia = true;
             convertMp4ToWebpAdaptive();
         });
-        btnOpcoes.setOnClickListener(v -> openDialogOpcoesVideo());
         btnSalvar.setOnClickListener(v -> enviarWhatsapp());
         btnPause.setOnClickListener(v -> {
             if (videoView.isPlaying()) {
@@ -355,7 +354,6 @@ public class CropVideoActivity extends AppCompatActivity {
         converting = job.running();
         btnCrop.setEnabled(!converting);
         btnExodia.setEnabled(!converting);
-        btnOpcoes.setEnabled(!converting);
         cropOverlay.setEnabled(!converting);
         if (converting || progressDialog != null) {
             if (!progressHidden) {
@@ -417,6 +415,7 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
+        state.putInt("suggestionMode", suggestionMode);
         state.putString(CompressionJob.EXTRA_ID, jobId);
         if (progressDialog != null) state.putStringArray("compressionDraft", readRetryDraft());
         super.onSaveInstanceState(state);
@@ -448,6 +447,21 @@ public class CropVideoActivity extends AppCompatActivity {
         }
         dialogView.findViewById(R.id.compression_info).setOnClickListener(this::showCompressionInfo);
         dialogView.findViewById(R.id.use_current_settings).setOnClickListener(v -> fillRetryFields(dialogView));
+        Spinner suggestions = dialogView.findViewById(R.id.compression_suggestion_mode);
+        android.widget.ArrayAdapter<String> modes = new android.widget.ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, new String[]{"Agressivo", "Moderado", "Suave"});
+        modes.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        suggestions.setAdapter(modes);
+        suggestions.setSelection(suggestionMode);
+        suggestions.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View selected, int position, long id) {
+                if (position == suggestionMode) return; // Initial binding must not overwrite restored edits.
+                suggestionMode = position;
+                applyCompressionSuggestion(dialogView);
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
+        dialogView.findViewById(R.id.apply_compression_suggestion).setOnClickListener(v -> applyCompressionSuggestion(dialogView));
         dialogView.findViewById(R.id.retry_compression_button).setOnClickListener(v -> retryCompression(dialogView));
         dialogView.findViewById(R.id.cancel_compression).setOnClickListener(v -> {
             try {
@@ -490,6 +504,36 @@ public class CropVideoActivity extends AppCompatActivity {
 
     private static int[] retryFieldIds() {
         return new int[]{R.id.retry_quality, R.id.retry_fps, R.id.retry_compression, R.id.retry_speed, R.id.retry_detail};
+    }
+
+    private void applyCompressionSuggestion(View view) {
+        try {
+            CompressionJob job = CompressionJob.load(this, jobId);
+            org.json.JSONObject last = job == null ? null : job.data.optJSONObject("lastAttempt");
+            if (last == null || last.optLong("bytes") <= 0)
+                throw new IllegalStateException("Aguarde a primeira tentativa concluída para sugerir valores.");
+            if (last.optLong("bytes") <= CompressionSuggestion.LIMIT) {
+                showControlError(view, "A última tentativa já está em até 500 KB. Os campos foram mantidos.");
+                return;
+            }
+            org.json.JSONObject current = job.data.optJSONObject("currentAttempt");
+            CompressionSettings suggested = CompressionSuggestion.suggest(settingsFromAttempt(last),
+                    settingsFromAttempt(current == null ? last : current), last.optLong("bytes"),
+                    CompressionSuggestion.Mode.values()[suggestionMode]);
+            String[] values = {String.valueOf(suggested.quality), String.valueOf(suggested.fps),
+                    String.valueOf(suggested.compression), String.valueOf(suggested.speed), String.valueOf(suggested.detailSize)};
+            int[] ids = retryFieldIds();
+            for (int i = 0; i < ids.length; i++) ((EditText) view.findViewById(ids[i])).setText(values[i]);
+            retryDraft = values;
+            showControlError(view, String.format(Locale.getDefault(),
+                    "Sugestão baseada em %.1f KB (%.1f%% acima do limite). Revise os campos e toque em Reiniciar. O tamanho final depende da mídia.",
+                    last.optLong("bytes") / 1024.0, 100.0 * (last.optLong("bytes") / (double) CompressionSuggestion.LIMIT - 1)));
+        } catch (Exception e) { showControlError(view, e.getMessage()); }
+    }
+
+    private static CompressionSettings settingsFromAttempt(org.json.JSONObject value) {
+        return new CompressionSettings(value.optInt("quality", 75), value.optInt("fps", 30),
+                value.optInt("compression", 6), value.optDouble("speed", 1), value.optInt("detailSize", 512));
     }
 
     private String[] readRetryDraft() {
@@ -679,51 +723,6 @@ public class CropVideoActivity extends AppCompatActivity {
             Toast.makeText(this, e.getMessage() + "\n" + Objects.requireNonNull(e.getCause()).getMessage(), Toast.LENGTH_SHORT).show();
             return null;
         }
-    }
-
-    private void openDialogOpcoesVideo() {
-        LayoutInflater inflater = LayoutInflater.from(this); // ou getLayoutInflater() se estiver em uma Activity
-        View dialogView = inflater.inflate(R.layout.dialog_custom, null);
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Configurações de Exportação");
-        builder.setView(dialogView);
-
-        inputVelocidade = dialogView.findViewById(R.id.input_velocidade);
-        inputVelocidadeFps = dialogView.findViewById(R.id.input_velocidade_fps);
-        inputCompressao = dialogView.findViewById(R.id.input_compression);
-        inputQuality = dialogView.findViewById(R.id.input_quality);
-
-        resetInputs();
-
-        builder.setPositiveButton("OK", (dialog, which) -> {
-            velocidade = inputVelocidade.getText().toString().trim();
-            velocidadeFps = inputVelocidadeFps.getText().toString().trim();
-            compression = inputCompressao.getText().toString().trim();
-            quality = inputQuality.getText().toString().trim();
-
-            if (velocidade.isEmpty() || velocidadeFps.isEmpty() || compression.isEmpty() || quality.isEmpty()) {
-                Toast.makeText(this, "Preencha todos os campos antes de gerar o comando.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            dialog.dismiss();
-        });
-
-        builder.setNegativeButton("Cancelar", (dialog, which) -> dialog.dismiss());
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.RED);
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.GRAY);
-    }
-
-    private void resetInputs() {
-        inputVelocidade.setText(velocidade);
-        inputVelocidadeFps.setText(velocidadeFps);
-        inputCompressao.setText(compression);
-        inputQuality.setText(quality);
     }
 
     public String getNextStickerPrefix() {
