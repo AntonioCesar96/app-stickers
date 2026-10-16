@@ -13,9 +13,9 @@ import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
 class StickerPackModel{
-    final String identifier;
-    final String name;
-    final String publisher;
+    @SerializedName("identifier") final String identifier;
+    @SerializedName("name") final String name;
+    @SerializedName("publisher") final String publisher;
     @SerializedName("tray_image_file") final String trayImageFile;
     @SerializedName("publisher_email") final String publisherEmail;
     @SerializedName("publisher_website") final String publisherWebsite;
@@ -24,7 +24,7 @@ class StickerPackModel{
     @SerializedName("image_data_version") final String imageDataVersion;
     @SerializedName("avoid_cache") final boolean avoidCache;
     @SerializedName("animated_sticker_pack") final boolean animatedStickerPack;
-    private List<StickerModel> stickers;
+    @SerializedName("stickers") private List<StickerModel> stickers;
 
     StickerPackModel(String identifier, String name, String publisher, String trayImageFile, String publisherEmail,
                      String publisherWebsite, String privacyPolicyWebsite, String licenseAgreementWebsite,

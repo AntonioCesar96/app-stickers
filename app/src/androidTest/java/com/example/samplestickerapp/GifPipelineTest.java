@@ -121,7 +121,10 @@ public class GifPipelineTest {
                 Thread.sleep(50);
             }
             assertTrue("Crop screen must produce a valid sticker directly from GIF", ready.get());
-            validate(output);
+            CompressionJob job = CompressionJob.pending(context);
+            assertNotNull(job);
+            validate(job.result(0));
+            CompressionJob.consume(context, job.id);
         } finally {
             CropVideoActivity c = crop; CustomVideoRangeActivity t = trim; FileExplorerActivity e = explorer;
             instrumentation.runOnMainSync(() -> {

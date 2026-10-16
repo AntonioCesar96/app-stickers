@@ -8,7 +8,10 @@ import static com.example.samplestickerapp.StickerPackValidator.IMAGE_WIDTH;
 import static com.example.samplestickerapp.StickerPackValidator.KB_IN_BYTES;
 
 import android.graphics.Color;
-import android.graphics.Rect;
+import android.content.Intent;
+import android.app.NotificationManager;
+import android.provider.Settings;
+import androidx.core.app.NotificationManagerCompat;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -35,13 +38,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
-import com.arthenica.ffmpegkit.FFmpegKit;
-import com.arthenica.ffmpegkit.FFprobeKit;
-import com.arthenica.ffmpegkit.MediaInformation;
-import com.arthenica.ffmpegkit.MediaInformationSession;
-import com.arthenica.ffmpegkit.ReturnCode;
-import com.arthenica.ffmpegkit.Session;
-import com.arthenica.ffmpegkit.StreamInformation;
 import com.facebook.animated.webp.WebPImage;
 import com.facebook.drawee.backends.pipeline.Fresco;
 import com.facebook.drawee.interfaces.DraweeController;
@@ -52,7 +48,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,8 +76,16 @@ public class CropVideoActivity extends AppCompatActivity {
     LinearLayout stickerContainerExodia;
     boolean exodia = false;
     private boolean converting;
-    private long activeConversionId = -1;
-    private File exportSource;
+    private String jobId;
+    private boolean jobRendered;
+    private boolean progressHidden;
+    private final Handler jobHandler = new Handler(Looper.getMainLooper());
+    private final Runnable pollJob = new Runnable() {
+        @Override public void run() {
+            refreshJob();
+            jobHandler.postDelayed(this, 750);
+        }
+    };
     private boolean gifSource;
     private long gifStartMs, gifEndMs;
     private boolean cropInitialized;
@@ -100,6 +103,25 @@ public class CropVideoActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        jobId = savedInstanceState == null ? getIntent().getStringExtra(CompressionJob.EXTRA_ID)
+                : savedInstanceState.getString(CompressionJob.EXTRA_ID);
+        if (jobId != null) {
+            CompressionJob restored = CompressionJob.load(this, jobId);
+            if (restored == null) { finish(); return; }
+            try {
+                setIntent(restored.screen(this));
+                exodia = restored.data.optBoolean("exodia");
+                velocidade = restored.data.getString("speed");
+                velocidadeFps = restored.data.getString("fps");
+                quality = restored.data.getString("quality");
+                compression = restored.data.getString("compression");
+                if (restored.running()) CompressionService.start(this, restored);
+            } catch (Exception e) {
+                Toast.makeText(this, "Não foi possível recuperar a tarefa.", Toast.LENGTH_LONG).show();
+                finish(); return;
+            }
+        }
+        CompressionService.channels(this);
         setContentView(R.layout.activity_crop_video);
 
         if (getSupportActionBar() != null) {
@@ -107,6 +129,7 @@ public class CropVideoActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("Cortar(Crop)");
         }
 
+        FilesHelper.setContext(getApplicationContext());
         videoView = findViewById(R.id.video_view);
         videoView.setZOrderMediaOverlay(true);
 
@@ -152,7 +175,6 @@ public class CropVideoActivity extends AppCompatActivity {
         videoFile = new File(Objects.requireNonNull(getIntent().getStringExtra("file_path")));
         String originalGif = getIntent().getStringExtra(GifMedia.SOURCE);
         gifSource = originalGif != null;
-        exportSource = gifSource ? new File(originalGif) : videoFile;
         gifStartMs = getIntent().getLongExtra(GifMedia.START_MS, 0);
         gifEndMs = getIntent().getLongExtra(GifMedia.END_MS, 0);
 
@@ -218,8 +240,18 @@ public class CropVideoActivity extends AppCompatActivity {
 
         // inicia conversão (exemplo)
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            exodia = false;
-            convertMp4ToWebpAdaptive();
+            if (jobId == null) {
+                exodia = false;
+                convertMp4ToWebpAdaptive();
+            } else {
+                CompressionJob job = CompressionJob.load(this, jobId);
+                if (job != null) {
+                    try { cropOverlay.restoreCrop(job.crop(screenW)); }
+                    catch (Exception ignored) { }
+                }
+                mostrarVideo();
+                refreshJob();
+            }
         }, 100);
     }
 
@@ -227,6 +259,9 @@ public class CropVideoActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
+        if (videoView == null) return;
+        jobHandler.removeCallbacks(pollJob);
+        jobHandler.post(pollJob);
         videoView.start();
         btnPause.setImageResource(R.drawable.ic_pause);
         if (gifSource) {
@@ -237,13 +272,20 @@ public class CropVideoActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        jobHandler.removeCallbacks(pollJob);
         gifPreviewHandler.removeCallbacks(loopGifPreview);
-        if (gifSource) videoView.pause();
+        if (videoView != null) videoView.pause();
         super.onPause();
     }
 
     public void convertMp4ToWebpAdaptive() {
         if (converting || isFinishing() || isDestroyed()) return;
+        CompressionJob pending = CompressionJob.pending(this);
+        if (pending != null && pending.running() && !pending.id.equals(jobId)) {
+            try { startActivity(pending.screen(this)); finish(); }
+            catch (Exception e) { Toast.makeText(this, "Já existe uma compressão em andamento.", Toast.LENGTH_LONG).show(); }
+            return;
+        }
         if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
             mostrarVideo();
             Toast.makeText(CropVideoActivity.this,
@@ -269,214 +311,114 @@ public class CropVideoActivity extends AppCompatActivity {
         controleStickers = new ArrayList<>();
         btnSalvar.setEnabled(false);
 
-        final int initialQuality;
-        final int compressionLvl;
-        final int requestedFps;
-        final double speed;
-        final MediaInformation info;
-        final StreamInformation vStream;
         try {
-            initialQuality = Integer.parseInt(quality);
-            compressionLvl = Integer.parseInt(compression);
-            requestedFps = Integer.parseInt(velocidadeFps);
-            speed = Double.parseDouble(velocidade.replace(',', '.'));
-            new AdaptiveWebpSearch(initialQuality, requestedFps);
-            if (compressionLvl < 0 || compressionLvl > 6 || !Double.isFinite(speed) || speed <= 0) {
-                throw new IllegalArgumentException("Use velocidade maior que zero e compressão de 0 a 6.");
-            }
-            MediaInformationSession probe = FFprobeKit.getMediaInformation(exportSource.getAbsolutePath());
-            info = probe.getMediaInformation();
-            if (info == null) throw new IllegalArgumentException("Não foi possível ler o vídeo.");
-            vStream = info.getStreams().stream()
-                    .filter(s -> "video".equals(s.getType())).findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Stream de vídeo não encontrado."));
-            double sourceDuration = Double.parseDouble(info.getDuration());
-            if (gifSource && (gifStartMs < 0 || gifEndMs <= gifStartMs
-                    || gifEndMs > Math.round(sourceDuration * 1000))) {
-                throw new IllegalArgumentException("Intervalo do GIF inválido. Selecione o trecho novamente.");
-            }
-            double duration = (gifSource ? (gifEndMs - gifStartMs) / 1000.0 : sourceDuration) / speed;
-            if (!Double.isFinite(duration) || duration <= 0 || duration > 10) {
-                throw new IllegalArgumentException("Selecione um trecho de até 10 segundos na velocidade escolhida.");
-            }
+            // Validation and probing run inside the service, never on the UI thread.
+            CompressionJob job = CompressionJob.create(this, getIntent(), cropOverlay.getCropRect(),
+                    getResources().getDisplayMetrics().widthPixels, exodia, velocidade,
+                    velocidadeFps, quality, compression);
+            jobId = job.id;
+            getIntent().putExtra(CompressionJob.EXTRA_ID, jobId);
+            jobRendered = false;
+            progressHidden = false;
+            exodia = job.data.optBoolean("exodia");
+            CompressionService.start(this, job);
+            refreshJob();
         } catch (Exception e) {
+            converting = false;
             mostrarVideo();
-            Toast.makeText(this, "Configuração inválida: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            return;
+            Toast.makeText(this, "Não foi possível iniciar a compressão: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
+    }
 
-        final int origSquare = Math.max(vStream.getWidth().intValue(), vStream.getHeight().intValue());
-        // A GIF's average rate hides short frames between long holds; don't cap by it.
-        final int initialFps = gifSource ? requestedFps : AdaptiveWebpSearch.sourceLimitedFps(
-                requestedFps, vStream.getAverageFrameRate(), speed);
-        final Rect crop = new Rect(cropOverlay.getCropRect());
-        final float mapFactor = (float) origSquare / getResources().getDisplayMetrics().widthPixels;
-        final int baseX = Math.max(0, Math.round(crop.left * mapFactor));
-        final int baseY = Math.max(0, Math.round(crop.top * mapFactor));
-        final int baseW = Math.min(origSquare - baseX, Math.round(crop.width() * mapFactor));
-        final int baseH = Math.min(origSquare - baseY, Math.round(crop.height() * mapFactor));
-        if (baseW < 2 || baseH < 2) {
-            Toast.makeText(this, "Selecione uma área maior para recortar.", Toast.LENGTH_LONG).show();
-            return;
-        }
-        final int count = exodia ? 4 : 1;
-        final List<File> results = new ArrayList<>();
-        final List<String> descriptions = new ArrayList<>();
-        converting = true;
-        btnSalvar.setEnabled(false);
-        progressDialog = createProgressDialog();
-        progressDialog.show();
+    private File outputDirectory() {
+        CompressionJob job = CompressionJob.load(this, jobId);
+        return job == null ? FilesHelper.getTempDir() : job.directory;
+    }
 
-        // One independent search per quadrant; never overwrite a running encoder's output.
-        class Conversion {
-            int quadrant;
-            int attempt;
-            AdaptiveWebpSearch search = new AdaptiveWebpSearch(initialQuality, initialFps);
-            File candidate;
-            File best;
-
-            void runAttempt() {
-                if (isFinishing() || isDestroyed()) return;
-                attempt++;
-                String name = count == 1 ? "output_cropped.webp"
-                        : String.format(Locale.US, "output_exodia_%d.webp", quadrant);
-                best = new File(FilesHelper.getTempDir(), name);
-                candidate = new File(FilesHelper.getTempDir(), "candidate_" + name);
-                int w = count == 1 ? baseW : baseW / 2;
-                int h = count == 1 ? baseH : baseH / 2;
-                int x = baseX + (count == 1 ? 0 : (quadrant % 2) * w);
-                int y = baseY + (count == 1 ? 0 : (quadrant / 2) * h);
-                String timeline = gifSource ? GifMedia.timelineFilter(gifStartMs, gifEndMs, speed, search.getFps())
-                        : String.format(Locale.US, "setpts=(PTS-STARTPTS)/%.8f,fps=%d,", speed, search.getFps());
-                String filter = timeline + String.format(Locale.US,
-                        "format=rgba,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=#00000000," +
-                        "crop=%d:%d:%d:%d," +
-                        "scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos," +
-                        "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000",
-                        origSquare, origSquare, w, h, x, y);
-                resetProgressUI(name, attempt);
+    private void refreshJob() {
+        if (jobId == null || isFinishing() || isDestroyed() || btnSalvar == null) return;
+        CompressionJob job = CompressionJob.load(this, jobId);
+        if (job == null) return;
+        TextView status = findViewById(R.id.compression_status);
+        status.setVisibility(View.VISIBLE);
+        status.setText(job.data.optString("message") + (job.running() ? "\nToque para acompanhar." : ""));
+        status.setOnClickListener(v -> { progressHidden = false; refreshJob(); });
+        converting = job.running();
+        btnCrop.setEnabled(!converting);
+        btnExodia.setEnabled(!converting);
+        btnOpcoes.setEnabled(!converting);
+        cropOverlay.setEnabled(!converting);
+        if (converting) {
+            if (!progressHidden) {
+                if (progressDialog == null) progressDialog = createProgressDialog();
+                if (!progressDialog.isShowing()) progressDialog.show();
+                ProgressBar progress = progressDialog.findViewById(R.id.progress_bar);
+                int value = job.data.optInt("progress");
+                progress.setIndeterminate(value <= 0);
+                progress.setMax(100);
+                progress.setProgress(value);
+                TextView attempts = progressDialog.findViewById(R.id.attempts_tv);
+                attempts.setText(job.data.optString("message"));
                 TextView details = progressDialog.findViewById(R.id.webp_info_tv);
-                details.setText(String.format(Locale.US,
-                        "Figurinha %d/%d • %d FPS • qualidade %d", quadrant + 1, count,
-                        search.getFps(), search.getQuality()));
-                // Explicit presets in FFmpeg 6 override compression_level. Use no preset.
-                String[] args = GifMedia.webpArguments(exportSource, gifSource, filter,
-                        search.getQuality(), compressionLvl, candidate);
-                activeConversionId = FFmpegKit.executeWithArgumentsAsync(args, session ->
-                        runOnUiThread(() -> complete(session))).getSessionId();
+                details.setText("Você pode minimizar o app. A compressão continua em segundo plano."
+                        + (value > 0 ? "\nTentativa atual: " + value + "%" : "")
+                        + (NotificationManagerCompat.from(this).areNotificationsEnabled() ? ""
+                        : "\nAtive as notificações para acompanhar fora do app."));
             }
-
-            void fail(String message) {
-                converting = false;
-                progressDialog.dismiss();
-                if (candidate != null) candidate.delete();
-                mostrarVideo();
-                Toast.makeText(CropVideoActivity.this, message, Toast.LENGTH_LONG).show();
-            }
-
-            void complete(Session session) {
-                activeConversionId = -1;
-                if (isFinishing() || isDestroyed()) return;
-                if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                    android.util.Log.e("WebpConversion", session.getAllLogsAsString());
-                    fail("Não foi possível converter o vídeo. Tente outro trecho.");
-                    return;
-                }
-                try {
-                    long bytes = candidate.length();
-                    if (bytes == 0) throw new IOException("O conversor gerou um arquivo vazio.");
-                    android.util.Log.i("WebpConversion", String.format(Locale.US,
-                            "part=%d attempt=%d fps=%d quality=%d bytes=%d",
-                            quadrant, attempt, search.getFps(), search.getQuality(), bytes));
-                    if (search.recordSize(bytes)) copyWebp(candidate, best);
-                    if (!search.isDone()) {
-                        runAttempt();
-                        return;
-                    }
-                    candidate.delete();
-                    if (!search.hasResult()) {
-                        fail("Este trecho precisa de muita compressão. Encurte a duração ou recorte uma área menor para manter a fluidez em até 500 KB.");
-                        return;
-                    }
-                    String description = describeWebp(best, search.getBestQuality());
-                    results.add(best);
-                    descriptions.add(description);
-                    if (++quadrant < count) {
-                        search = new AdaptiveWebpSearch(initialQuality, initialFps);
-                        attempt = 0;
-                        runAttempt();
-                    } else {
-                        converting = false;
-                        for (int i = 0; i < results.size(); i++) showResult(results.get(i), descriptions.get(i));
-                        btnSalvar.setEnabled(true);
-                    }
-                } catch (Exception e) {
-                    fail("Não foi possível criar a figurinha: " + e.getMessage());
-                }
-            }
+            return;
         }
-        new Conversion().runAttempt();
-    }
-
-    private static void copyWebp(File source, File target) throws IOException {
-        try (FileInputStream input = new FileInputStream(source);
-             FileOutputStream output = new FileOutputStream(target)) {
-            byte[] buffer = new byte[8192];
-            int length;
-            while ((length = input.read(buffer)) != -1) output.write(buffer, 0, length);
+        if (progressDialog != null) progressDialog.dismiss();
+        if (jobRendered) return;
+        jobRendered = true;
+        mostrarVideo();
+        if (job.done()) {
+            exodia = job.data.optBoolean("exodia");
+            controleStickers.clear();
+            org.json.JSONArray results = job.data.optJSONArray("results");
+            for (int i = 0; i < results.length(); i++) showResult(job.result(i), results.optString(i));
+            btnSalvar.setEnabled(true);
+        } else {
+            Toast.makeText(this, job.data.optString("message"), Toast.LENGTH_LONG).show();
         }
     }
 
-    private String describeWebp(File file, int qualityValue) throws IOException {
-        WebPImage image = WebPImage.createFromByteArray(getBytes(file), ImageDecodeOptions.defaults());
-        try {
-            if (file.length() > AdaptiveWebpSearch.MAX_BYTES || image.getWidth() != 512 || image.getHeight() != 512
-                    || image.getDuration() <= 0 || image.getDuration() > ANIMATED_STICKER_TOTAL_DURATION_MAX
-                    || image.getFrameCount() < 2) {
-                throw new IOException("O resultado não atende aos limites de uma figurinha animada.");
-            }
-            for (int duration : image.getFrameDurations()) {
-                if (duration < ANIMATED_STICKER_FRAME_DURATION_MIN) {
-                    throw new IOException("O resultado contém um quadro curto demais.");
-                }
-            }
-            return String.format(Locale.US,
-                    "FPS médio: %.1f\nDuração: %.2fs\nTamanho: %.2f KB\nQualidade: %d",
-                    image.getFrameCount() * 1000.0 / image.getDuration(), image.getDuration() / 1000.0,
-                    file.length() / 1024.0, qualityValue);
-        } finally {
-            image.dispose();
-        }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putString(CompressionJob.EXTRA_ID, jobId);
+        super.onSaveInstanceState(state);
     }
 
-    @Override
-    protected void onDestroy() {
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // A notification can target a different job; rebuild all editor fields from its record.
+        setIntent(intent);
+        jobId = intent.getStringExtra(CompressionJob.EXTRA_ID);
+        recreate();
+    }
+
+    @Override protected void onDestroy() {
+        jobHandler.removeCallbacks(pollJob);
         gifPreviewHandler.removeCallbacks(loopGifPreview);
-        if (activeConversionId >= 0) FFmpegKit.cancel(activeConversionId);
         if (progressDialog != null) progressDialog.dismiss();
         super.onDestroy();
     }
 
     private AlertDialog createProgressDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_progress, null);
-        ProgressBar progressBar = dialogView.findViewById(R.id.progress_bar);
-        TextView attemptsTv = dialogView.findViewById(R.id.attempts_tv);
-        progressBar.setMax(100);
-        attemptsTv.setText("Reduzindo a figurinha até 500Kb \nTentativa: 0");
-        return new AlertDialog.Builder(this)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle("Criando figurinha")
                 .setView(dialogView)
                 .setCancelable(false)
-                .create();
-    }
-
-    private void resetProgressUI(String nomeArquivo, int attempt) {
-        runOnUiThread(() -> {
-            ProgressBar pb = progressDialog.findViewById(R.id.progress_bar);
-            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
-            pb.setProgress(0);
-            tv.setText("Reduzindo a figurinha até 500Kb \nTentativa: " + attempt);
-        });
+                .setPositiveButton("Minimizar app", (d, which) -> moveTaskToBack(true))
+                .setNegativeButton("Fechar progresso", (d, which) -> {
+                    progressHidden = true;
+                    mostrarVideo();
+                });
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            builder.setNeutralButton("Ativar notificações", (d, which) -> startActivity(
+                    new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())));
+        }
+        return builder.create();
     }
 
     private void showResult(File webpFile, String webpInfos) {
@@ -493,7 +435,7 @@ public class CropVideoActivity extends AppCompatActivity {
             SimpleDraweeView simpleDraweeView = findViewById(R.id.output_cropped_webp_s);
             ProgressBar progressBar = findViewById(R.id.output_cropped_webp_l);
 
-            setupController(simpleDraweeView, new File(FilesHelper.getTempDir(), "output_cropped.webp"));
+            setupController(simpleDraweeView, new File(outputDirectory(), "output_cropped.webp"));
 
             simpleDraweeView.setOnClickListener(view2 ->
                     Toast.makeText(this, webpInfos, Toast.LENGTH_SHORT).show());
@@ -509,7 +451,7 @@ public class CropVideoActivity extends AppCompatActivity {
                 SimpleDraweeView simpleDraweeView = findViewById(simpleDraweeViewId);
                 ProgressBar progressBar = findViewById(progressBarId);
 
-                setupController(simpleDraweeView, new File(FilesHelper.getTempDir(), cs.nomeArquivo));
+                setupController(simpleDraweeView, new File(outputDirectory(), cs.nomeArquivo));
 
                 simpleDraweeView.setOnClickListener(view2 ->
                         Toast.makeText(this, cs.webpInfos, Toast.LENGTH_SHORT).show()
@@ -524,7 +466,7 @@ public class CropVideoActivity extends AppCompatActivity {
 
         if ((exodia && controleStickers.size() == 4) || (!exodia && controleStickers.size() == 1)) {
             runOnUiThread(() -> {
-                progressDialog.dismiss();
+                if (progressDialog != null) progressDialog.dismiss();
             });
         }
     }
@@ -644,6 +586,15 @@ public class CropVideoActivity extends AppCompatActivity {
     }
 
     private void enviarWhatsapp() {
+        // A pack may have been edited while this job was running in the background.
+        try {
+            for (StickerPack current : StickerPackLoader.fetchStickerPacks(this)) {
+                if (current.identifier.equals(stickerPack.identifier)) {
+                    stickerPack = current;
+                    break;
+                }
+            }
+        } catch (Exception e) { android.util.Log.w("CropVideoActivity", "Atualização do pacote", e); }
         if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
             mostrarVideo();
             String msg = "Não é possível adicionar mais 4 figurinhas nesse pacote, pois em um pacote é permitido " +
@@ -666,10 +617,10 @@ public class CropVideoActivity extends AppCompatActivity {
         // Cria lista de arquivos temporários (1 ou 4) para envio
         List<File> tempFiles = new ArrayList<>();
         if (!exodia) {
-            tempFiles.add(new File(FilesHelper.getTempDir(), "output_cropped.webp"));
+            tempFiles.add(new File(outputDirectory(), "output_cropped.webp"));
         } else {
             for (int i = 0; i < 4; i++) {
-                tempFiles.add(new File(FilesHelper.getTempDir(), String.format("output_exodia_%d.webp", i)));
+                tempFiles.add(new File(outputDirectory(), String.format("output_exodia_%d.webp", i)));
             }
         }
 
@@ -808,6 +759,9 @@ public class CropVideoActivity extends AppCompatActivity {
             ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
             ContentsJsonHelper.stickerPackAlterado = escolhido;
             ContentsJsonHelper.stickersAlterados = stickers;
+            CompressionJob.consume(this, jobId);
+            if (jobId != null) getSystemService(NotificationManager.class)
+                    .cancel(CompressionService.notificationId(jobId));
 
             finish();
         }

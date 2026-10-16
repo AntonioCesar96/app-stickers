@@ -15,7 +15,7 @@ import java.util.List;
 class StickerModel {
     @SerializedName("image_file")
     final String imageFileName;
-    final List<String> emojis;
+    @SerializedName("emojis") final List<String> emojis;
     @SerializedName("accessibility_text")
     final String accessibilityText;
 

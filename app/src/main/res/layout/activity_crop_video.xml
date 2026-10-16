@@ -18,6 +18,15 @@
             android:orientation="vertical"
             android:padding="5dp">
 
+            <TextView
+                android:id="@+id/compression_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:textColor="#222222"
+                android:background="#EEEEEE"
+                android:visibility="gone" />
+
             <ProgressBar
                 android:id="@+id/sticker_loader_video_view"
                 android:layout_width="wrap_content"

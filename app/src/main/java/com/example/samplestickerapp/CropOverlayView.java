@@ -74,6 +74,7 @@ public class CropOverlayView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        if (!isEnabled()) return false;
         int x = (int) ev.getX(), y = (int) ev.getY();
         switch (ev.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -155,6 +156,12 @@ public class CropOverlayView extends View {
 
     public Rect getCropRect() {
         return new Rect(cropRect);
+    }
+
+    public void restoreCrop(Rect rect) {
+        cropRect.set(rect);
+        clampInside();
+        invalidate();
     }
 
     public void setOnOutsideCropClickListener(OnOutsideCropClickListener l) {

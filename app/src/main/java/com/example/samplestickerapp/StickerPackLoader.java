@@ -53,7 +53,10 @@ class StickerPackLoader {
             throw new IllegalStateException("could not fetch from content provider, " + BuildConfig.CONTENT_PROVIDER_AUTHORITY);
         }
         HashSet<String> identifierSet = new HashSet<>();
-        final ArrayList<StickerPack> stickerPackList = fetchFromContentProvider(cursor);
+        final ArrayList<StickerPack> stickerPackList;
+        try (Cursor ownedCursor = cursor) {
+            stickerPackList = fetchFromContentProvider(ownedCursor);
+        }
         for (StickerPack stickerPack : stickerPackList) {
             if (identifierSet.contains(stickerPack.identifier)) {
                 throw new IllegalStateException("sticker pack identifiers should be unique, there are more than one pack with identifier:" + stickerPack.identifier);
@@ -94,8 +97,7 @@ class StickerPackLoader {
     @NonNull
     private static ArrayList<StickerPack> fetchFromContentProvider(Cursor cursor) {
         ArrayList<StickerPack> stickerPackList = new ArrayList<>();
-        cursor.moveToFirst();
-        do {
+        while (cursor.moveToNext()) {
             final String identifier = cursor.getString(cursor.getColumnIndexOrThrow(STICKER_PACK_IDENTIFIER_IN_QUERY));
             final String name = cursor.getString(cursor.getColumnIndexOrThrow(STICKER_PACK_NAME_IN_QUERY));
             final String publisher = cursor.getString(cursor.getColumnIndexOrThrow(STICKER_PACK_PUBLISHER_IN_QUERY));
@@ -113,7 +115,7 @@ class StickerPackLoader {
             stickerPack.setAndroidPlayStoreLink(androidPlayStoreLink);
             stickerPack.setIosAppStoreLink(iosAppLink);
             stickerPackList.add(stickerPack);
-        } while (cursor.moveToNext());
+        }
         return stickerPackList;
     }
 

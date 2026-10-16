@@ -27,6 +27,22 @@ import java.util.Arrays;
 public class SplashActivity extends BaseActivity {
 
     private Button btnPermissao;
+    private boolean opening;
+
+    private void openApplication() {
+        if (opening) return;
+        opening = true;
+        criarPastasIniciais();
+        ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
+        CompressionJob pending = CompressionJob.pending(this);
+        try {
+            startActivity(pending == null ? new Intent(this, EntryActivity.class) : pending.screen(this));
+        } catch (Exception e) {
+            startActivity(new Intent(this, EntryActivity.class));
+        }
+        finish();
+        overridePendingTransition(0, 0);
+    }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -44,20 +60,16 @@ public class SplashActivity extends BaseActivity {
         if (!PermissionHelper.hasManageExternalStoragePermission(this)) {
             PermissionHelper.requestManageExternalStoragePermission(this);
         } else {
-            criarPastasIniciais();
-            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-
-            // Pode acessar os arquivos com segurança
-            final Intent intent = new Intent(this, EntryActivity.class);
-            startActivity(intent);
-            finish();
-            overridePendingTransition(0, 0);
+            openApplication();
         }
     }
 
     private void criarPastasIniciais() {
         try {
-            ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
+            // The service may still be copying an input from cache/temp.
+            if (CompressionJob.pending(this) == null) {
+                ContentsJsonHelper.deleteRecursive(FilesHelper.getTempDir());
+            }
 
             File figurinhasDir = FilesHelper.getFigurinhaDir();
             if (!figurinhasDir.exists())
@@ -79,14 +91,7 @@ public class SplashActivity extends BaseActivity {
         super.onResume();
 
         if (PermissionHelper.hasManageExternalStoragePermission(this)) {
-            criarPastasIniciais();
-            ContentsJsonHelper.atualizaContentsJsonAndContentProvider(this);
-
-            // Pode acessar os arquivos com segurança
-            final Intent intent = new Intent(this, EntryActivity.class);
-            startActivity(intent);
-            finish();
-            overridePendingTransition(0, 0);
+            openApplication();
         }
     }
 
