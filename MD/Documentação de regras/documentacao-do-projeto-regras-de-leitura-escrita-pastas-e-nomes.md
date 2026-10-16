@@ -1,6 +1,6 @@
 # Documentação do projeto: regras de leitura, escrita, pastas e nomes
 
-Última atualização: 2026-10-16_09-59 (America/Cuiaba).
+Última atualização: 2026-10-16_10-03 (America/Cuiaba).
 
 ## Finalidade e regras
 
@@ -13,7 +13,11 @@ A documentação do projeto permite consultar o histórico das mudanças, aprend
 | Explicação de conceitos por classe | Classe afetada | Aula consolidada da classe inteira, com conceitos, algoritmos, lógica, padrões e arquitetura pertinentes. Nome totalmente qualificado da classe; atualização dentro do texto. |
 | Documentação de regras | Assunto ou funcionalidade | Regras e funcionamento atual consolidados. Nome estável, sem data; atualização dentro do texto. |
 
-As instruções estão no [AGENTS.md](../../AGENTS.md). Registros e aulas usam `AAAA-MM-DD_HH-mm_descricao.md`. Documentos temáticos usam nomes específicos, como `compressao-de-figurinhas-animadas-webp-limite-500kb-qualidade-fps.md`, desde que esses assuntos sejam cobertos pelo conteúdo. Os horários seguem America/Cuiaba.
+As instruções gerais estão em `C:\Users\Dell\.codex\AGENTS.md`, arquivo global deste perfil do Codex. O [AGENTS.md local](../../AGENTS.md) mantém uma referência e fica reservado para regras específicas deste projeto. A documentação continua sendo produzida na pasta `MD/` do projeto trabalhado, não na pasta de configuração global.
+
+Registros e aulas usam `AAAA-MM-DD_HH-mm_descricao.md`. Documentos temáticos usam nomes específicos, como `compressao-de-figurinhas-animadas-webp-limite-500kb-qualidade-fps.md`, desde que esses assuntos sejam cobertos pelo conteúdo. Os horários seguem America/Cuiaba.
+
+O alcance global depende do perfil utilizado: outro computador ou outro `CODEX_HOME` precisa da própria configuração. Instruções de projeto podem complementar ou sobrepor as globais. A documentação oficial orienta iniciar uma nova execução ou sessão para reconstruir a cadeia de instruções: [instruções com AGENTS.md](https://developers.openai.com/codex/guides/agents-md).
 
 ## Regras de leitura e economia de contexto
 
