@@ -1,6 +1,6 @@
 # Compressão WebP: tentativas, parâmetros e controle em background
 
-Última atualização: 2026-10-16_11-04 (America/Cuiaba).
+Última atualização: 2026-10-16_11-14 (America/Cuiaba).
 
 ## Funcionamento e limite
 
@@ -15,6 +15,8 @@ O alvo é até 512000 bytes, apresentados como 500 KB. O serviço valida WebP co
 O parâmetro de nitidez define a resolução intermediária de detalhes, seguida de ampliação para a saída de 512×512. Um início manual em 200 não volta a 512 durante a busca; depois de esgotar a qualidade, os próximos níveis de detalhe são inferiores a 200.
 
 ## Diálogo
+
+A grade organiza Qualidade/FPS na primeira linha e Compressão/Nitidez na segunda; Velocidade ocupa a linha inferior. O ícone de informações é um vetor contornado de 20 dp, com padding dentro de um botão de 48 dp para preservar a área de toque. A ajuda e os parâmetros continuam vinculados aos mesmos IDs.
 
 A barra é determinada desde 0%, com percentual numérico da tentativa atual. O serviço combina estatísticas e timestamps dos quadros filtrados pelo FFmpeg, pois o muxer WebP animado pode não informar tempo intermediário. Usa a duração de saída após velocidade e recorte. Não há avanço simulado pelo relógio, e uma nova tentativa cria um medidor novo.
 

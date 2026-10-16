@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp">
  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
  <TextView android:id="@+id/compression_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Compressão" android:textSize="18sp" android:textStyle="bold" android:textColor="#0F172A" />
- <ImageButton android:id="@+id/compression_info" android:layout_width="48dp" android:layout_height="48dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_dialog_info" android:tint="#00796B" android:contentDescription="Informações sobre a compressão" />
+ <ImageButton android:id="@+id/compression_info" android:layout_width="48dp" android:layout_height="48dp" android:padding="14dp" android:scaleType="fitCenter" android:background="?attr/selectableItemBackgroundBorderless" android:src="@drawable/ic_compression_info" android:tint="#64748B" android:contentDescription="Informações sobre a compressão" />
  </LinearLayout>
  <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="false">
  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
@@ -29,12 +29,12 @@
   <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Compressão (0–6)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_compression" />
   <EditText android:id="@+id/retry_compression" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
   </LinearLayout><LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingRight="8dp">
-  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Velocidade (×)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_speed" />
-  <EditText android:id="@+id/retry_speed" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="numberDecimal" android:selectAllOnFocus="true" android:singleLine="true" />
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Nitidez (1–512)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_detail" />
+  <EditText android:id="@+id/retry_detail" android:layout_width="match_parent" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
   </LinearLayout></LinearLayout>
 <LinearLayout android:layout_width="match_parent" android:layout_height="44dp" android:gravity="center_vertical" android:orientation="horizontal">
-<TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Nitidez (1–512)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_detail" />
-<EditText android:id="@+id/retry_detail" android:layout_width="104dp" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:gravity="center" android:inputType="number" android:selectAllOnFocus="true" android:singleLine="true" />
+<TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Velocidade (×)" android:textSize="12sp" android:textColor="#475569" android:labelFor="@id/retry_speed" />
+<EditText android:id="@+id/retry_speed" android:layout_width="104dp" android:layout_height="40dp" android:textSize="15sp" android:textColor="#0F172A" android:gravity="center" android:inputType="numberDecimal" android:selectAllOnFocus="true" android:singleLine="true" />
 </LinearLayout>
 <TextView android:id="@+id/compression_action_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="#B91C1C" android:accessibilityLiveRegion="polite" />
  </LinearLayout>
