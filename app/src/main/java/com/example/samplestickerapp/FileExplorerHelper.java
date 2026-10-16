@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Movie;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.util.Log;
@@ -21,6 +20,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.FFprobeKit;
+import com.arthenica.ffmpegkit.MediaInformation;
+import com.arthenica.ffmpegkit.StreamInformation;
 import com.arthenica.ffmpegkit.ReturnCode;
 import com.arthenica.ffmpegkit.Session;
 import com.facebook.common.executors.CallerThreadExecutor;
@@ -48,6 +50,9 @@ import java.util.Locale;
 
 public class FileExplorerHelper {
 
+    // Temporarily hidden: set to true to restore the import-processing choice.
+    private static final boolean SHOW_VIDEO_PROCESSING_DIALOG = false;
+
     private AppCompatActivity activity;
     private StickerPack stickerPack;
 
@@ -57,31 +62,20 @@ public class FileExplorerHelper {
     }
 
     public void extracted(File file, Class classs) {
+        if (GifMedia.isGif(file)) {
+            importGif(file, classs);
+            return;
+        }
         if (file.getName().contains(".mp4")) {
+            if (!SHOW_VIDEO_PROCESSING_DIALOG) {
+                useVideoAsIs(file, classs);
+                return;
+            }
             AlertDialogHelper.showAlertDialog(activity, "",
                     "Vídeos muito grandes ou com qualidade muito alta precisam ser comprimidos para que a figurinha seja criada " +
                             "do jeito que o whatsapp aceita(até 500kb). \n" +
                             "Gostaria de passar esse video em nosso processamento ou usa-lo como está?", "Usar como está", "Processar",
-                    () -> {
-                        try {
-                            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-                            retriever.setDataSource(file.getAbsolutePath());
-                            long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-                            retriever.release();
-
-                            Intent intent = new Intent(activity, classs);
-                            if (durationMs > 8000)
-                                intent = new Intent(activity, CustomVideoRangeActivity.class);
-
-                            intent.putExtra("sticker_pack", stickerPack);
-                            intent.putExtra("file_path", file.getAbsolutePath());
-                            activity.startActivity(intent);
-                            return;
-                        } catch (Exception e) {
-
-                        }
-                        extracted2(file, classs);
-                    }, () -> {
+                    () -> useVideoAsIs(file, classs), () -> {
                         extracted2(file, classs);
                     });
             return;
@@ -90,7 +84,94 @@ public class FileExplorerHelper {
         extracted2(file, classs);
     }
 
+    private void importGif(File source, Class target) {
+        ProgressDialog progress = new ProgressDialog(activity);
+        progress.setMessage("Preparando prévia do GIF…");
+        progress.setCancelable(false);
+        progress.show();
+        FFprobeKit.getMediaInformationAsync(source.getAbsolutePath(), probe -> {
+            File preview = null;
+            try {
+                MediaInformation info = probe.getMediaInformation();
+                if (info == null) throw new IOException("Não foi possível ler o GIF.");
+                StreamInformation stream = info.getStreams().stream()
+                        .filter(s -> "video".equals(s.getType())).findFirst()
+                        .orElseThrow(() -> new IOException("GIF sem imagem válida."));
+                double seconds = Double.parseDouble(info.getDuration());
+                if (!Double.isFinite(seconds) || seconds <= 0 || seconds * 1000 > Integer.MAX_VALUE
+                        || stream.getWidth() == null || stream.getWidth() <= 0
+                        || stream.getHeight() == null || stream.getHeight() <= 0) {
+                    throw new IOException("Dimensões ou duração do GIF inválidas.");
+                }
+                long durationMs = Math.round(seconds * 1000);
+                File previewDir = new File(activity.getCacheDir(), "gif_previews");
+                if (!previewDir.isDirectory() && !previewDir.mkdirs())
+                    throw new IOException("Não foi possível criar a pasta de prévias.");
+                preview = File.createTempFile("gif_preview_", ".mp4", previewDir);
+                File output = preview;
+                FFmpegKit.executeWithArgumentsAsync(GifMedia.previewArguments(source, output), session -> {
+                    activity.runOnUiThread(() -> {
+                        progress.dismiss();
+                        if (activity.isFinishing() || activity.isDestroyed()) {
+                            output.delete();
+                            return;
+                        }
+                        if (!ReturnCode.isSuccess(session.getReturnCode())) {
+                            output.delete();
+                            Log.e("GifImport", session.getAllLogsAsString());
+                            Toast.makeText(activity, "Não foi possível preparar este GIF.", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        Intent intent = new Intent(activity,
+                                durationMs > 8000 ? CustomVideoRangeActivity.class : target);
+                        intent.putExtra("sticker_pack", stickerPack);
+                        intent.putExtra("file_path", output.getAbsolutePath());
+                        intent.putExtra(GifMedia.SOURCE, source.getAbsolutePath());
+                        intent.putExtra(GifMedia.START_MS, 0L);
+                        intent.putExtra(GifMedia.END_MS, durationMs);
+                        intent.putExtra(GifMedia.WIDTH, stream.getWidth().intValue());
+                        intent.putExtra(GifMedia.HEIGHT, stream.getHeight().intValue());
+                        activity.startActivity(intent);
+                    });
+                });
+            } catch (Exception e) {
+                if (preview != null) preview.delete();
+                Log.e("GifImport", "Falha ao importar GIF", e);
+                activity.runOnUiThread(() -> {
+                    progress.dismiss();
+                    if (!activity.isFinishing() && !activity.isDestroyed())
+                        Toast.makeText(activity, "Não foi possível ler este GIF.", Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void useVideoAsIs(File file, Class classs) {
+        try {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(file.getAbsolutePath());
+            long durationMs = Long.parseLong(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+            retriever.release();
+
+            Intent intent = new Intent(activity, classs);
+            if (durationMs > 8000)
+                intent = new Intent(activity, CustomVideoRangeActivity.class);
+
+            intent.putExtra("sticker_pack", stickerPack);
+            intent.putExtra("file_path", file.getAbsolutePath());
+            activity.startActivity(intent);
+            return;
+        } catch (Exception e) {
+            // Preserve the existing "Usar como está" fallback for unreadable videos.
+        }
+        extracted2(file, classs);
+    }
+
     public void extracted2(File file, Class classs) {
+        if (GifMedia.isGif(file)) {
+            importGif(file, classs);
+            return;
+        }
         LayoutInflater inflater = LayoutInflater.from(activity);
         View customTitleView = inflater.inflate(R.layout.custom_dialog_title, null);
         ImageButton closeButton = customTitleView.findViewById(R.id.closeButton);
@@ -135,7 +216,7 @@ public class FileExplorerHelper {
         String inputPath = file.getAbsolutePath();
 
         String[] split = inputPath.split("/");
-        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + ".mp4";
+        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + "_hq.mp4";
 
         File outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         String outputPath = outputFile.getAbsolutePath();
@@ -163,10 +244,14 @@ public class FileExplorerHelper {
     }
 
     private void processar(File file, Class classs, Integer resolucao) {
+        if (GifMedia.isGif(file)) {
+            importGif(file, classs);
+            return;
+        }
         String inputPath = file.getAbsolutePath();
 
         String[] split = inputPath.split("/");
-        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + ".mp4";
+        String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_" + resolucao + "_hq.mp4";
 
         File outputFile = new File(FilesHelper.getMp4Dir(), nomeArquivoOriginalTemp);
         String outputPath = outputFile.getAbsolutePath();
@@ -191,75 +276,21 @@ public class FileExplorerHelper {
             }
         }
 
-        List<String> extensaoImagens = Arrays.asList(
-                ".gif", ".webp");
-
-        int width = 0;
-        long durationMs = 0;
-
-        if (extensaoImagens.stream().anyMatch(inputPath::endsWith)) {
-            // Tratamento de GIF
-            if (inputPath.toLowerCase().endsWith(".gif")) {
-                try (FileInputStream fis = new FileInputStream(inputPath)) {
-                    Movie movie = Movie.decodeStream(fis);
-                    width = movie.width();
-                    durationMs = movie.duration();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                File tempMp4File = new File(FilesHelper.getMp4Dir(), split[split.length - 1].replace(".", "_") + "_gif.mp4");
-
-                String ffmpegCommand = "-i \"" + inputPath + "\""
-                        + " -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\""
-                        + " -c:v libx264 -crf 23 -preset fast -pix_fmt yuv420p -movflags +faststart -an "
-                        + tempMp4File.getAbsolutePath();
-
-                Session session = FFmpegKit.execute(ffmpegCommand);
-
-                if (ReturnCode.isSuccess(session.getReturnCode())) {
-                    inputPath = tempMp4File.getAbsolutePath();
-
-                    if (durationMs <= 4000) {
-                        Intent intent = new Intent(activity, classs);
-                        intent.putExtra("sticker_pack", stickerPack);
-                        intent.putExtra("file_path", inputPath);
-                        activity.startActivity(intent);
-                        return;
-                    }
-                } else {
-                    Toast.makeText(activity,
-                            "Falha na conversão de gif para mp4. Log: " + session.getAllLogsAsString(),
-                            Toast.LENGTH_LONG).show();
-                    Log.e("FFmpeg", "Falha na conversão. Log: " + session.getAllLogsAsString());
-                    return;
-                }
-
-            }
-            // Tratamento de WebP
-            else if (inputPath.toLowerCase().endsWith(".webp")) {
-                extractWebPFrames(nomeArquivoOriginalTemp, inputPath, activity, classs);
-                return;
-            }
-
-        } else {
-            // Recupera dimensões originais
-            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
-            retriever.setDataSource(inputPath);
-            width = Integer.parseInt(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-            int height = Integer.parseInt(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-            durationMs = Long.parseLong(
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-            retriever.release();
+        if (inputPath.toLowerCase(Locale.ROOT).endsWith(".webp")) {
+            extractWebPFrames(nomeArquivoOriginalTemp, inputPath, activity, classs);
+            return;
         }
+        MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+        retriever.setDataSource(inputPath);
+        long durationMs = Long.parseLong(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+        retriever.release();
 
-        String videoFilter = "-vf \"scale=" + resolucao + ":-2,fps=24\"";
+        String videoFilter = "-vf \"scale=" + resolucao + ":-2:flags=lanczos\"";
 
         // Prepare FFmpeg command
         String ffmpegCommand = String.format(Locale.US,
-                "-y -i \"%s\" %s -c:v libx264 -preset veryslow -b:v 500k -crf 28 -an \"%s\"",
+                "-y -i \"%s\" %s -c:v libx264 -preset medium -crf 18 -an \"%s\"",
                 inputPath, videoFilter, outputPath
         );
 
@@ -460,7 +491,7 @@ public class FileExplorerHelper {
                 "-y -f concat -safe 0 -i \"%s\" " +
                         "-vf \"scale=512:-2\" " +
                         "-movflags +faststart " +
-                        "-c:v libx264 -preset veryslow " +
+                        "-c:v libx264 -preset medium -crf 18 " +
                         "-pix_fmt yuv420p " +
                         "\"%s\"",
                 frameTxtFile.getAbsolutePath(),

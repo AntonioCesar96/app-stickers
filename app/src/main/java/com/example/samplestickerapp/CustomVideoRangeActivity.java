@@ -137,8 +137,10 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
                     if (videoDuration != 0) return;
 
                     // Obtém a duração do vídeo quando estiver pronto
-                    videoDuration = (int) player.getDuration();
-                    currentEndMs = videoDuration;
+                    videoDuration = getIntent().hasExtra(GifMedia.SOURCE)
+                            ? (int) getIntent().getLongExtra(GifMedia.END_MS, player.getDuration())
+                            : (int) player.getDuration();
+                    currentEndMs = Math.min(videoDuration, 8000);
 
                     // Exibe o tempo total do vídeo
                     txtTotalTime.setText(formatTime(videoDuration));
@@ -253,6 +255,19 @@ public class CustomVideoRangeActivity extends AppCompatActivity {
     }
 
     private void trimVideoWithFFmpegKit() {
+        if (getIntent().hasExtra(GifMedia.SOURCE)) {
+            if (currentStartMs < 0 || currentEndMs <= currentStartMs || currentEndMs > videoDuration) {
+                Toast.makeText(this, "Selecione um intervalo válido do GIF.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            // Keep the original GIF and its preview; export applies this range only once.
+            Intent intent = new Intent(this, CropVideoActivity.class);
+            intent.putExtras(getIntent());
+            intent.putExtra(GifMedia.START_MS, (long) currentStartMs);
+            intent.putExtra(GifMedia.END_MS, (long) currentEndMs);
+            startActivity(intent);
+            return;
+        }
         String inputPath = videoFile.getAbsolutePath();
         String[] split = inputPath.split("/");
         String nomeArquivoOriginalTemp = split[split.length - 1].replace(".", "_") + "_cortado.mp4";

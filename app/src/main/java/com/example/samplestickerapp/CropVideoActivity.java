@@ -24,7 +24,6 @@ import androidx.core.content.ContextCompat;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewTreeObserver;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 
@@ -53,13 +52,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -82,6 +80,21 @@ public class CropVideoActivity extends AppCompatActivity {
     FrameLayout stickerContainerNaoExodia;
     LinearLayout stickerContainerExodia;
     boolean exodia = false;
+    private boolean converting;
+    private long activeConversionId = -1;
+    private File exportSource;
+    private boolean gifSource;
+    private long gifStartMs, gifEndMs;
+    private boolean cropInitialized;
+    private final Handler gifPreviewHandler = new Handler(Looper.getMainLooper());
+    private final Runnable loopGifPreview = new Runnable() {
+        @Override public void run() {
+            if (videoView.isPlaying() && videoView.getCurrentPosition() >= gifEndMs) {
+                videoView.seekTo((int) gifStartMs);
+            }
+            gifPreviewHandler.postDelayed(this, 30);
+        }
+    };
     List<ControleSticker> controleStickers = new ArrayList<>();
 
     @Override
@@ -104,6 +117,7 @@ public class CropVideoActivity extends AppCompatActivity {
         btnExodia = findViewById(R.id.btn_exodia);
         btnPause = findViewById(R.id.btn_pause);
         btnSalvar = findViewById(R.id.btn_salvar);
+        btnSalvar.setEnabled(false);
         btnOpcoes = findViewById(R.id.btn_opcoes);
         videoContainer = findViewById(R.id.video_container);
         bottomButtons = findViewById(R.id.bottom_buttons);
@@ -136,30 +150,32 @@ public class CropVideoActivity extends AppCompatActivity {
 
         stickerPack = getIntent().getParcelableExtra("sticker_pack");
         videoFile = new File(Objects.requireNonNull(getIntent().getStringExtra("file_path")));
+        String originalGif = getIntent().getStringExtra(GifMedia.SOURCE);
+        gifSource = originalGif != null;
+        exportSource = gifSource ? new File(originalGif) : videoFile;
+        gifStartMs = getIntent().getLongExtra(GifMedia.START_MS, 0);
+        gifEndMs = getIntent().getLongExtra(GifMedia.END_MS, 0);
 
         videoView.setVideoPath(videoFile.getAbsolutePath());
         videoView.setOnPreparedListener(mp -> {
-            mp.setLooping(true);
+            mp.setLooping(!gifSource);
 
-            videoOriginalWidth = mp.getVideoWidth();
-            videoOriginalHeight = mp.getVideoHeight();
+            videoOriginalWidth = gifSource ? getIntent().getIntExtra(GifMedia.WIDTH, mp.getVideoWidth()) : mp.getVideoWidth();
+            videoOriginalHeight = gifSource ? getIntent().getIntExtra(GifMedia.HEIGHT, mp.getVideoHeight()) : mp.getVideoHeight();
 
+            if (gifSource) videoView.seekTo((int) gifStartMs);
             videoView.start();
+            if (!cropInitialized) {
+                cropInitialized = true;
+                videoView.post(this::setupContainerAndCrop);
+            }
         });
-
-        videoView.getViewTreeObserver().addOnPreDrawListener(
-                new ViewTreeObserver.OnPreDrawListener() {
-                    @Override
-                    public boolean onPreDraw() {
-                        videoView.getViewTreeObserver().removeOnPreDrawListener(this);
-
-                        // espera o vídeo renderizar...
-                        new Handler().postDelayed(() -> setupContainerAndCrop(), 1000);
-
-                        return true;
-                    }
-                }
-        );
+        videoView.setOnCompletionListener(mp -> {
+            if (gifSource) {
+                videoView.seekTo((int) gifStartMs);
+                videoView.start();
+            }
+        });
 
         cropOverlay.setOnOutsideCropClickListener((boolean flag) -> {
             lockableScrollView.setScrollingEnabled(flag);
@@ -213,9 +229,21 @@ public class CropVideoActivity extends AppCompatActivity {
 
         videoView.start();
         btnPause.setImageResource(R.drawable.ic_pause);
+        if (gifSource) {
+            gifPreviewHandler.removeCallbacks(loopGifPreview);
+            gifPreviewHandler.post(loopGifPreview);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        gifPreviewHandler.removeCallbacks(loopGifPreview);
+        if (gifSource) videoView.pause();
+        super.onPause();
     }
 
     public void convertMp4ToWebpAdaptive() {
+        if (converting || isFinishing() || isDestroyed()) return;
         if (exodia && (stickerPack.getStickers().size() + 4) > 30) {
             mostrarVideo();
             Toast.makeText(CropVideoActivity.this,
@@ -239,158 +267,194 @@ public class CropVideoActivity extends AppCompatActivity {
         findViewById(R.id.output_exodia_3_webp_l).setVisibility(View.VISIBLE);
 
         controleStickers = new ArrayList<>();
+        btnSalvar.setEnabled(false);
 
-        int initialQuality = Integer.parseInt(quality);
-        int compressionLvl = Integer.parseInt(compression);
-        int initialFps = Integer.parseInt(velocidadeFps);
+        final int initialQuality;
+        final int compressionLvl;
+        final int requestedFps;
+        final double speed;
+        final MediaInformation info;
+        final StreamInformation vStream;
+        try {
+            initialQuality = Integer.parseInt(quality);
+            compressionLvl = Integer.parseInt(compression);
+            requestedFps = Integer.parseInt(velocidadeFps);
+            speed = Double.parseDouble(velocidade.replace(',', '.'));
+            new AdaptiveWebpSearch(initialQuality, requestedFps);
+            if (compressionLvl < 0 || compressionLvl > 6 || !Double.isFinite(speed) || speed <= 0) {
+                throw new IllegalArgumentException("Use velocidade maior que zero e compressão de 0 a 6.");
+            }
+            MediaInformationSession probe = FFprobeKit.getMediaInformation(exportSource.getAbsolutePath());
+            info = probe.getMediaInformation();
+            if (info == null) throw new IllegalArgumentException("Não foi possível ler o vídeo.");
+            vStream = info.getStreams().stream()
+                    .filter(s -> "video".equals(s.getType())).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Stream de vídeo não encontrado."));
+            double sourceDuration = Double.parseDouble(info.getDuration());
+            if (gifSource && (gifStartMs < 0 || gifEndMs <= gifStartMs
+                    || gifEndMs > Math.round(sourceDuration * 1000))) {
+                throw new IllegalArgumentException("Intervalo do GIF inválido. Selecione o trecho novamente.");
+            }
+            double duration = (gifSource ? (gifEndMs - gifStartMs) / 1000.0 : sourceDuration) / speed;
+            if (!Double.isFinite(duration) || duration <= 0 || duration > 10) {
+                throw new IllegalArgumentException("Selecione um trecho de até 10 segundos na velocidade escolhida.");
+            }
+        } catch (Exception e) {
+            mostrarVideo();
+            Toast.makeText(this, "Configuração inválida: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            return;
+        }
 
-        // Probe video to get original dimensions & duration
-        MediaInformationSession probe = FFprobeKit.getMediaInformation(videoFile.getAbsolutePath());
-        MediaInformation info = probe.getMediaInformation();
-        StreamInformation vStream = info.getStreams().stream()
-                .filter(s -> "video".equals(s.getType()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Stream de vídeo não encontrado"));
-        final int origW = Integer.parseInt(vStream.getWidth().toString());
-        final int origH = Integer.parseInt(vStream.getHeight().toString());
-        final int origSquare = Math.max(origW, origH);
-        final long videoDurationMs = (long) (Double.parseDouble(info.getDuration()) * 1000);
-
-        final long MAX_SIZE = 500 * 1024;
+        final int origSquare = Math.max(vStream.getWidth().intValue(), vStream.getHeight().intValue());
+        // A GIF's average rate hides short frames between long holds; don't cap by it.
+        final int initialFps = gifSource ? requestedFps : AdaptiveWebpSearch.sourceLimitedFps(
+                requestedFps, vStream.getAverageFrameRate(), speed);
+        final Rect crop = new Rect(cropOverlay.getCropRect());
+        final float mapFactor = (float) origSquare / getResources().getDisplayMetrics().widthPixels;
+        final int baseX = Math.max(0, Math.round(crop.left * mapFactor));
+        final int baseY = Math.max(0, Math.round(crop.top * mapFactor));
+        final int baseW = Math.min(origSquare - baseX, Math.round(crop.width() * mapFactor));
+        final int baseH = Math.min(origSquare - baseY, Math.round(crop.height() * mapFactor));
+        if (baseW < 2 || baseH < 2) {
+            Toast.makeText(this, "Selecione uma área maior para recortar.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        final int count = exodia ? 4 : 1;
+        final List<File> results = new ArrayList<>();
+        final List<String> descriptions = new ArrayList<>();
+        converting = true;
+        btnSalvar.setEnabled(false);
         progressDialog = createProgressDialog();
         progressDialog.show();
 
-        class Retry {
-            int quality = initialQuality;
-            int compression = compressionLvl;
-            int fps = initialFps;
-            double velocity = Double.parseDouble(velocidade);
-            int attempt = 0;
-            long sizeAnterior = 0;
-            int sizeAnteriorTentativas = 0;
+        // One independent search per quadrant; never overwrite a running encoder's output.
+        class Conversion {
+            int quadrant;
+            int attempt;
+            AdaptiveWebpSearch search = new AdaptiveWebpSearch(initialQuality, initialFps);
+            File candidate;
+            File best;
 
             void runAttempt() {
-                progressDialog.show();
+                if (isFinishing() || isDestroyed()) return;
                 attempt++;
-                Rect r = cropOverlay.getCropRect();
-                int containerSide = getResources().getDisplayMetrics().widthPixels;
-                float mapFactor = (float) origSquare / containerSide;
-                int baseCropX = Math.round(r.left * mapFactor);
-                int baseCropY = Math.round(r.top * mapFactor);
-                int baseCropW = Math.round(r.width() * mapFactor);
-                int baseCropH = Math.round(r.height() * mapFactor);
-
-                if (!exodia) {
-                    File out = new File(FilesHelper.getTempDir(), "output_cropped.webp");
-                    resetProgressUI(out.getName(), attempt);
-                    processQuadrant(baseCropX, baseCropY, baseCropW, baseCropH, out, this);
-                } else {
-                    int halfW = baseCropW / 2;
-                    int halfH = baseCropH / 2;
-                    for (int i = 0; i < 4; i++) {
-                        int offsetX = baseCropX + (i % 2) * halfW;
-                        int offsetY = baseCropY + (i / 2) * halfH;
-                        File out = new File(FilesHelper.getTempDir(), String.format("output_exodia_%d.webp", i));
-                        resetProgressUI(out.getName(), attempt);
-                        processQuadrant(offsetX, offsetY, halfW, halfH, out, this);
-                    }
-                }
+                String name = count == 1 ? "output_cropped.webp"
+                        : String.format(Locale.US, "output_exodia_%d.webp", quadrant);
+                best = new File(FilesHelper.getTempDir(), name);
+                candidate = new File(FilesHelper.getTempDir(), "candidate_" + name);
+                int w = count == 1 ? baseW : baseW / 2;
+                int h = count == 1 ? baseH : baseH / 2;
+                int x = baseX + (count == 1 ? 0 : (quadrant % 2) * w);
+                int y = baseY + (count == 1 ? 0 : (quadrant / 2) * h);
+                String timeline = gifSource ? GifMedia.timelineFilter(gifStartMs, gifEndMs, speed, search.getFps())
+                        : String.format(Locale.US, "setpts=(PTS-STARTPTS)/%.8f,fps=%d,", speed, search.getFps());
+                String filter = timeline + String.format(Locale.US,
+                        "format=rgba,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=#00000000," +
+                        "crop=%d:%d:%d:%d," +
+                        "scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos," +
+                        "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000",
+                        origSquare, origSquare, w, h, x, y);
+                resetProgressUI(name, attempt);
+                TextView details = progressDialog.findViewById(R.id.webp_info_tv);
+                details.setText(String.format(Locale.US,
+                        "Figurinha %d/%d • %d FPS • qualidade %d", quadrant + 1, count,
+                        search.getFps(), search.getQuality()));
+                // Explicit presets in FFmpeg 6 override compression_level. Use no preset.
+                String[] args = GifMedia.webpArguments(exportSource, gifSource, filter,
+                        search.getQuality(), compressionLvl, candidate);
+                activeConversionId = FFmpegKit.executeWithArgumentsAsync(args, session ->
+                        runOnUiThread(() -> complete(session))).getSessionId();
             }
 
-            void processQuadrant(int cropX, int cropY, int cropW, int cropH,
-                                 File webpFile, Retry ctx) {
-
-
-                String vfFilter = String.format(Locale.US,
-                        "format=rgba,pad=%d:%d:(%d-iw)/2:(%d-ih)/2:color=#00000000," +
-                                "crop=%d:%d:%d:%d," +
-                                "scale=512:512:force_original_aspect_ratio=decrease," +
-                                "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000," +
-                                (velocity == 0 ? "" : ("setpts=" + (1 / velocity) + "*PTS,")) +
-                                "fps=%d",
-                        origSquare, origSquare, origSquare, origSquare,
-                        cropW, cropH, cropX, cropY,
-                        fps
-                );
-                String cmd = String.format(Locale.US,
-                        "-y -i \"%s\" -vf \"%s\" -c:v libwebp_anim -lossless 0 " +
-                                "-q:v %d -compression_level %d -preset default -loop 0 -an -vsync 0 \"%s\"",
-                        videoFile.getAbsolutePath(), vfFilter, ctx.quality, ctx.compression,
-                        webpFile.getAbsolutePath());
-
-                FFmpegKit.executeAsync(cmd,
-                        session -> {
-                            runOnUiThread(() -> {
-                                onComplete(session, webpFile, ctx);
-                            });
-                        },
-                        log -> {
-                        },
-                        statistics -> updateProgress(webpFile.getName(), attempt)
-                );
+            void fail(String message) {
+                converting = false;
+                progressDialog.dismiss();
+                if (candidate != null) candidate.delete();
+                mostrarVideo();
+                Toast.makeText(CropVideoActivity.this, message, Toast.LENGTH_LONG).show();
             }
 
-            void onComplete(Session session, File webpFile, Retry ctx) {
+            void complete(Session session) {
+                activeConversionId = -1;
+                if (isFinishing() || isDestroyed()) return;
                 if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                    showError(session);
+                    android.util.Log.e("WebpConversion", session.getAllLogsAsString());
+                    fail("Não foi possível converter o vídeo. Tente outro trecho.");
                     return;
                 }
-                String webpInfos = "";
                 try {
-                    // EXTRAI E EXIBE AS INFOS DO WebP
-                    byte[] bytes = getBytes(webpFile);
-                    WebPImage webPImage = WebPImage.createFromByteArray(bytes, ImageDecodeOptions.defaults());
-                    webpInfos = String.format(Locale.US,
-                            "Fps: %d \nDuração: %.2fs \nTamanho: %.2fKB",
-                            webPImage.getFrameCount(),
-                            webPImage.getDuration() / 1000f,
-                            webPImage.getSizeInBytes() / 1024f
-                    );
+                    long bytes = candidate.length();
+                    if (bytes == 0) throw new IOException("O conversor gerou um arquivo vazio.");
+                    android.util.Log.i("WebpConversion", String.format(Locale.US,
+                            "part=%d attempt=%d fps=%d quality=%d bytes=%d",
+                            quadrant, attempt, search.getFps(), search.getQuality(), bytes));
+                    if (search.recordSize(bytes)) copyWebp(candidate, best);
+                    if (!search.isDone()) {
+                        runAttempt();
+                        return;
+                    }
+                    candidate.delete();
+                    if (!search.hasResult()) {
+                        fail("Este trecho precisa de muita compressão. Encurte a duração ou recorte uma área menor para manter a fluidez em até 500 KB.");
+                        return;
+                    }
+                    String description = describeWebp(best, search.getBestQuality());
+                    results.add(best);
+                    descriptions.add(description);
+                    if (++quadrant < count) {
+                        search = new AdaptiveWebpSearch(initialQuality, initialFps);
+                        attempt = 0;
+                        runAttempt();
+                    } else {
+                        converting = false;
+                        for (int i = 0; i < results.size(); i++) showResult(results.get(i), descriptions.get(i));
+                        btnSalvar.setEnabled(true);
+                    }
                 } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                String finalWebpInfos = webpInfos;
-
-                runOnUiThread(() -> {
-                    TextView infoTv = progressDialog.findViewById(R.id.webp_info_tv);
-                    infoTv.setText(finalWebpInfos);
-                });
-
-                long size = webpFile.length();
-                if (ctx.sizeAnterior == 0) ctx.sizeAnterior = size;
-                else if (ctx.sizeAnterior != size) ctx.sizeAnterior = size;
-                else {
-                    if (ctx.sizeAnteriorTentativas > 3) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(CropVideoActivity.this,
-                                    "Não foi possível reduzir abaixo de 500KB, ajuste e tente novamente", Toast.LENGTH_SHORT).show();
-                            showResult(webpFile, finalWebpInfos);
-                        });
-                        return;
-                    }
-                    ctx.sizeAnteriorTentativas++;
-                }
-                if (size <= MAX_SIZE) {
-                    runOnUiThread(() -> {
-                        showResult(webpFile, finalWebpInfos);
-                    });
-                } else {
-                    if (attempt == 1 && (size - (700 * 1024)) > MAX_SIZE) {
-                        ctx.quality = 60;
-                        ctx.fps = 16;
-                        ctx.runAttempt();
-                        return;
-                    }
-                    if (ctx.quality > 60) ctx.quality = Math.max(60, ctx.quality - 10);
-                    if (ctx.fps > 15) ctx.fps = Math.max(15, ctx.fps - 2);
-                    else if (ctx.fps > 1) ctx.fps--;
-                    ctx.runAttempt();
+                    fail("Não foi possível criar a figurinha: " + e.getMessage());
                 }
             }
         }
+        new Conversion().runAttempt();
+    }
 
-        new Retry().runAttempt();
+    private static void copyWebp(File source, File target) throws IOException {
+        try (FileInputStream input = new FileInputStream(source);
+             FileOutputStream output = new FileOutputStream(target)) {
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = input.read(buffer)) != -1) output.write(buffer, 0, length);
+        }
+    }
+
+    private String describeWebp(File file, int qualityValue) throws IOException {
+        WebPImage image = WebPImage.createFromByteArray(getBytes(file), ImageDecodeOptions.defaults());
+        try {
+            if (file.length() > AdaptiveWebpSearch.MAX_BYTES || image.getWidth() != 512 || image.getHeight() != 512
+                    || image.getDuration() <= 0 || image.getDuration() > ANIMATED_STICKER_TOTAL_DURATION_MAX
+                    || image.getFrameCount() < 2) {
+                throw new IOException("O resultado não atende aos limites de uma figurinha animada.");
+            }
+            for (int duration : image.getFrameDurations()) {
+                if (duration < ANIMATED_STICKER_FRAME_DURATION_MIN) {
+                    throw new IOException("O resultado contém um quadro curto demais.");
+                }
+            }
+            return String.format(Locale.US,
+                    "FPS médio: %.1f\nDuração: %.2fs\nTamanho: %.2f KB\nQualidade: %d",
+                    image.getFrameCount() * 1000.0 / image.getDuration(), image.getDuration() / 1000.0,
+                    file.length() / 1024.0, qualityValue);
+        } finally {
+            image.dispose();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        gifPreviewHandler.removeCallbacks(loopGifPreview);
+        if (activeConversionId >= 0) FFmpegKit.cancel(activeConversionId);
+        if (progressDialog != null) progressDialog.dismiss();
+        super.onDestroy();
     }
 
     private AlertDialog createProgressDialog() {
@@ -412,20 +476,6 @@ public class CropVideoActivity extends AppCompatActivity {
             TextView tv = progressDialog.findViewById(R.id.attempts_tv);
             pb.setProgress(0);
             tv.setText("Reduzindo a figurinha até 500Kb \nTentativa: " + attempt);
-        });
-    }
-
-    private void updateProgress(String nomeArquivo, int attempt) {
-        runOnUiThread(() -> {
-            TextView tv = progressDialog.findViewById(R.id.attempts_tv);
-            tv.setText("Reduzindo a figurinha até 500Kb \nTentativa: " + attempt);
-        });
-    }
-
-    private void showError(Session session) {
-        runOnUiThread(() -> {
-            progressDialog.dismiss();
-            Toast.makeText(this, "FFmpeg falhou: " + session.getFailStackTrace(), Toast.LENGTH_LONG).show();
         });
     }
 
