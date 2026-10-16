@@ -188,7 +188,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         final boolean animated = stickerPack.animatedStickerPack;
         new Thread(() -> {
             try {
-                SelectedStickers.Result result = SelectedStickers.add(FilesHelper.getAssetsDir(), sourceId, sticker.imageFileName, animated);
+                SelectedStickers.Result result = SelectedStickers.add(FilesHelper.getAssetsDir(), sourceId, sticker.imageFileName, animated,
+                        new InitialStickerTemplates(getAssets()));
                 ContentsJsonHelper.atualizaContentsJson();
                 ContentsJsonHelper.atualizaContentProvider(this);
                 ContentsJsonHelper.packsChanged = true;
@@ -201,8 +202,10 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                     savingSelected = false;
                     if (isFinishing() || isDestroyed()) return;
                     String message = (result.duplicate ? "Esta figurinha já está em " : "Figurinha copiada para ")
-                            + result.identifier + ".\n\n" + result.count + "/30 figurinhas."
-                            + (result.count < 3 ? " Escolha mais " + (3 - result.count) + " para adicionar o pacote ao WhatsApp." : " O pacote já pode ser adicionado ao WhatsApp.");
+                            + result.identifier + ".\n\n" + result.selectedCount + " escolhida(s) e "
+                            + result.fillerCount + " inicial(is) temporária(s). " + result.count + "/30 no pacote."
+                            + (result.fillerCount > 0 ? " As iniciais serão substituídas conforme você escolher novas figurinhas." : "")
+                            + " O pacote já pode ser adicionado ao WhatsApp.";
                     AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle("Figurinhas selecionadas")
                             .setMessage(message).setNegativeButton("Continuar escolhendo", null)
                             .setNeutralButton("Ver pacote", (d, which) -> startActivity(new Intent(this, StickerPackDetailsActivity.class)

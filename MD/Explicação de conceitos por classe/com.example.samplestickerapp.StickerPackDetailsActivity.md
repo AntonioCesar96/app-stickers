@@ -1,7 +1,7 @@
 # StickerPackDetailsActivity: detalhes, edição e escolha individual
 
 Código: `app/src/main/java/com/example/samplestickerapp/StickerPackDetailsActivity.java`.
-Atualização: 2026-10-16_16-38 — America/Cuiaba.
+Atualização: 2026-10-16_16-55 — America/Cuiaba.
 
 ## Responsabilidade e colaboração
 
@@ -27,9 +27,9 @@ onOptionsItemSelected trata mover via bottom sheet com verificação de manter t
 
 O novo método recebe o Sticker escolhido. Se savingSelected já for true, retorna. Captura identificador/tipo da origem e inicia uma Thread nomeada selected-sticker-copy. Essa captura evita depender de uma substituição posterior do campo stickerPack para determinar de onde copiar.
 
-Dentro da thread, SelectedStickers.add copia ou reconhece duplicata e retorna destino/quantidade. Depois regenera o JSON, limpa o cache do ContentProvider, marca packsChanged e busca o pacote de destino pelo identificador. A recarga passa pelo mesmo caminho que a listagem normal; é onde a permissão de rascunho no validador se torna necessária.
+Dentro da thread, SelectedStickers.add recebe também InitialStickerTemplates(getAssets()), copia ou reconhece duplicata e reconcilia preenchimento para manter três. A fonte lê os mesmos assets da Splash sem depender das cópias externas. Retorna destino, escolhidas, iniciais temporárias e total. Depois a tela regenera JSON, limpa cache do ContentProvider, marca packsChanged e busca o destino pelo identificador. A tolerância do validador a rascunhos continua útil para dados legados, mas adições bem-sucedidas agora completam o mínimo automaticamente.
 
-Em runOnUiThread libera savingSelected, verifica se a Activity ainda existe e apresenta a confirmação. A mensagem distingue duplicata de cópia, indica N/30 e quantas faltam. Ver pacote abre outra StickerPackDetailsActivity com o destino; Continuar escolhendo fecha a mensagem; com três ou mais, Adicionar ao WhatsApp chama a integração herdada para o pacote de selecionadas. Nunca exporta automaticamente o pacote de origem.
+Em runOnUiThread libera savingSelected, verifica se a Activity ainda existe e apresenta a confirmação. Distingue duplicata de cópia, informa escolhidas, temporárias e total N/30 e explica a substituição das iniciais. Ver pacote abre os detalhes do destino; Continuar escolhendo fecha a mensagem; com três ou mais, Adicionar ao WhatsApp chama a integração herdada para a coleção. O preenchimento permite oferecer essa ação desde a primeira escolha. Nunca exporta automaticamente o pacote de origem.
 
 Exceções também voltam à thread principal e mostram erro apenas se a tela ainda está ativa. A cópia pode concluir se o usuário sair durante a thread; o resultado já persistido permanece, mas não é garantido reapresentar o diálogo após recriação. Não foi criado serviço nem job durável para essa operação curta. Hash/cópia/consulta ficam fora da thread principal para preservar interação; navegar e desenhar ficam nela.
 

@@ -14,6 +14,45 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class SelectedStickersDeviceTest {
+    @Test public void bundledStaticAndAnimatedSamplesFillThenDisappearAsChoicesArrive() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        InitialStickerTemplates templates = new InitialStickerTemplates(context.getAssets());
+        File workspace = new File(context.getCacheDir(), "selected-fillers-test-" + UUID.randomUUID());
+        File assets = new File(workspace, "assets");
+        assertTrue(assets.mkdirs());
+        try {
+            for (boolean animated : new boolean[]{false, true}) {
+                String id = animated ? "animated-source" : "static-source";
+                File source = new File(assets, id); assertTrue(source.mkdir());
+                if (animated) assertTrue(new File(source, "animado.txt").createNewFile());
+                String bundled = animated ? "Pacote 1" : "Pacote 2";
+                try (java.io.InputStream in = context.getAssets().open(bundled + "/icone.png");
+                     FileOutputStream out = new FileOutputStream(new File(source, "icone.png"))) {
+                    byte[] bytes = new byte[16384]; int n; while ((n = in.read(bytes)) != -1) out.write(bytes, 0, n);
+                }
+                String[] names = templates.names(animated); java.util.Arrays.sort(names);
+                assertTrue(names.length >= 3);
+                for (int i = 0; i < 3; i++) {
+                    File original = new File(source, names[i]);
+                    try (java.io.InputStream in = templates.open(animated, names[i]); FileOutputStream out = new FileOutputStream(original)) {
+                        byte[] bytes = new byte[16384]; int n; while ((n = in.read(bytes)) != -1) out.write(bytes, 0, n);
+                    }
+                    SelectedStickers.Result result = SelectedStickers.add(assets, id, names[i], animated, templates);
+                    assertEquals(3, result.count); assertEquals(i + 1, result.selectedCount); assertEquals(2 - i, result.fillerCount);
+                    assertFalse(result.duplicate); assertTrue(original.isFile());
+                    File target = new File(assets, result.identifier);
+                    assertEquals(animated, new File(target, "animado.txt").exists());
+                    int initialCount = 0;
+                    for (File file : target.listFiles((d, n) -> n.endsWith(".webp"))) {
+                        if (SelectedStickers.isFiller(file)) initialCount++;
+                        assertTrue(file.length() > 0);
+                    }
+                    assertEquals(2 - i, initialCount);
+                }
+            }
+        } finally { ContentsJsonHelper.deleteRecursive(workspace); }
+    }
+
     @Test public void previewShowsSelectionButtonBelowStickerAndImageDismissesIt() throws Exception {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Context context = instrumentation.getTargetContext();
@@ -66,9 +105,9 @@ public class SelectedStickersDeviceTest {
                 Bitmap icon = Bitmap.createScaledBitmap(image, 96, 96, true);
                 try { assertTrue(icon.compress(Bitmap.CompressFormat.PNG, 100, out)); } finally { icon.recycle(); }
             }
-            SelectedStickers.Result first = SelectedStickers.add(assets, "source", "1_test.webp", false);
-            SelectedStickers.Result duplicate = SelectedStickers.add(assets, "source", "1_test.webp", false);
-            assertEquals(1, first.count); assertTrue(duplicate.duplicate);
+            SelectedStickers.Result first = SelectedStickers.add(assets, "source", "1_test.webp", false, new InitialStickerTemplates(context.getAssets()));
+            SelectedStickers.Result duplicate = SelectedStickers.add(assets, "source", "1_test.webp", false, new InitialStickerTemplates(context.getAssets()));
+            assertEquals(3, first.count); assertEquals(1, first.selectedCount); assertEquals(2, first.fillerCount); assertTrue(duplicate.duplicate);
             assertTrue(new File(source, "1_test.webp").isFile());
             File collection = new File(assets, first.identifier);
             assertTrue(SelectedStickers.isCollection(collection));

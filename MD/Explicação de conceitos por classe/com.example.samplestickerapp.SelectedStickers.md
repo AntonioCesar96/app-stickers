@@ -1,29 +1,37 @@
 # SelectedStickers: arquivos, identidade e publicação das coleções
 
 Código: `app/src/main/java/com/example/samplestickerapp/SelectedStickers.java`.
-Atualização: 2026-10-16_16-38 — America/Cuiaba.
+Atualização: 2026-10-16_16-55 — America/Cuiaba.
 
 ## Responsabilidade e fundamentos
 
 Esta classe final, com visibilidade de pacote, aplica regras da coleção sem depender de Android Views ou Context. Recebe File como raiz explícita, o que permite usar armazenamento real no app e TemporaryFolder nos testes. Não guarda uma lista em memória entre chamadas; o estado persistente está no filesystem. A Activity é responsável por executar fora da thread principal e publicar o resultado no catálogo.
 
-MARKER é o nome `.selected-stickers`. `isCollection` verifica sua existência como arquivo. É a identidade da funcionalidade; um nome parecido não basta. A classe interna Result transporta identifier, count e duplicate como campos finais. Seu construtor conta os WebP atuais do diretório: resultado inclui o estado observável após a operação, sem manter um contador paralelo que poderia divergir do disco.
+MARKER é o nome `.selected-stickers`. `isCollection` verifica sua existência como arquivo. É a identidade da funcionalidade; um nome parecido não basta. Result transporta identifier, count, selectedCount, fillerCount e duplicate como campos finais. Seu construtor conta os WebP e classifica temporários pelos bytes atuais; não mantém contador paralelo que possa divergir do disco. A interface Templates fornece names/open para ler amostras sem acoplar esta classe ao Android.
 
 ## add: do pedido à decisão
 
 `static synchronized Result add(...)` torna a classe um ponto de serialização no processo. Duas chamadas não escolhem a mesma vaga simultaneamente entre si. Não é um bloqueio entre processos nem com outras classes gravadoras. Os parâmetros identificam assets, origem, nome e tipo. CanonicalFile resolve os caminhos; as comparações de pais proíbem sair da raiz e do pacote. Em seguida exige arquivo não vazio, extensão WebP e tipo compatível com animado.txt.
 
-`digest(input)` calcula SHA-256 por streaming. O diretório é listado e ordenado por nome para escolha determinística. Para cada coleção do tipo, o método lê seus WebP e compara hashes. Se achar igualdade, retorna duplicate=true antes de copiar. Também lembra a primeira com menos de 30, mas continua procurando duplicatas nos demais diretórios.
+`digest(input)` calcula SHA-256 por streaming. O diretório é listado e ordenado por nome para escolha determinística. Para cada coleção do tipo, compara hashes apenas das escolhas permanentes. Se achar igualdade, chama reconcile sem entrada nova para garantir preenchimento e retorna duplicate=true. Também lembra a primeira com menos de 30, mas continua procurando duplicatas nos demais diretórios. Uma cópia temporária não impede a escolha explícita da mesma imagem.
 
 Essa ordem importa: suponha coleção A com 2 e coleção B com 30 contendo a entrada. Parar em A faria duplicação; continuar até B reconhece a seleção anterior. Comparação de hash identifica bytes iguais, não semelhança visual. Uma nova versão recodificada pode ser considerada nova mesmo parecendo igual.
 
 ## Criação e inserção
 
-Sem destino com vaga, usa nome conforme o tipo e procura sufixo numérico livre. A presença de um pacote comum com esse nome só causa escolha de outro nome; não altera o pacote existente. Prepara um diretório `.selected-UUID` irmão de assets. Copia a figurinha como `01_hash.webp`, copia icone.png da origem, cria marcador da coleção, v_1.txt e, se animada, animado.txt. Só depois renomeia o diretório para o nome público dentro de assets.
+Sem destino com vaga, usa nome conforme o tipo e procura sufixo numérico livre. A presença de um pacote comum com esse nome só causa escolha de outro nome; não altera o pacote existente. Prepara um diretório `.selected-UUID` irmão de assets. Copia a escolha como `01_hash.webp`, copia icone.png da origem, prepara as duas amostras necessárias e cria os marcadores da coleção, versão e tipo. Só depois renomeia o diretório para assets, já com três figurinhas.
 
-Com destino existente, `nextIndex` escolhe um prefixo numérico maior que os presentes. O índice mantém a convenção de ordenação do ContentsJsonHelper, inclusive se houve remoções anteriores. Cria um .tmp dentro do destino, copia, renomeia para WebP e chama bumpVersion. committed só fica true ao final. O finally remove temporário e, se necessário, a nova figurinha. Não toca na origem.
+Com destino existente, reconcile separa escolhas e temporários, prepara a entrada nova se houver e calcula as amostras desejadas. nextIndex mantém a convenção numérica do scanner. Novos arquivos são publicados antes de retirar os temporários excedentes para staging; a versão é incrementada quando algo muda. published e removed registram os efeitos para desfazer em erro. O finally restaura retirados e apaga publicações novas se committed não ficou true. Em falha da restauração, conserva staging e informa seu caminho. A origem nunca é removida.
 
-`copy` abre streams com try-with-resources, usa buffer de 16 KiB e sincroniza o descritor antes de fechar. `createMarker` exige criação bem-sucedida. `bumpVersion` procura v_N.txt, encontra a maior versão, rejeita estouro de Integer.MAX_VALUE, cria N+1 e remove marcadores anteriores. Em falha de remoção tenta apagar o novo marcador e propaga erro; add desfaz a nova cópia. `cleanup` remove arquivos de staging e o diretório quando ele ainda existe; após rename, o caminho antigo desapareceu e a coleção publicada fica intacta.
+## Preparação e identificação dos temporários
+
+FILLER_PREFIX é `00_selected-filler_`. isFiller exige esse prefixo, 64 dígitos hexadecimais, extensão WebP e igualdade com o SHA-256 atual. Uma inicial alterada externamente passa a permanente para evitar sua exclusão indevida. Esse padrão é uma convenção reservada da coleção, não uma assinatura de autenticação.
+
+prepareFillers calcula `max(0, 3 - selected.size())`. Com três escolhas, retorna sem acessar templates. Com uma ou duas, coleta hashes permanentes, ordena as amostras fornecidas e copia candidatos por InputStream. Só aceita hashes distintos das escolhas e dos candidatos anteriores. Retorna os nomes desejados quando alcança o necessário; sem quantidade suficiente, lança IOException antes de publicar. O candidato temporário usa template.tmp, que não é reconhecido como figurinha pelo scanner.
+
+Simulação: uma escolha A e temporários B/C. Adicionar D produz A/D e um temporário, mantendo total três. Adicionar E produz A/D/E e nenhum temporário. Clicar de novo em A não muda a contagem de escolhas, mas repara os temporários se faltarem. Clicar explicitamente em B quando ele era preenchimento cria uma escolha permanente B; a cópia de preenchimento correspondente pode ser retirada.
+
+copy tem uma entrada File e outra InputStream: ambas usam buffer de 16 KiB e sincronizam o descritor de saída. O chamador fecha a entrada fornecida. createMarker exige criação; bumpVersion lê v_N.txt, rejeita estouro, cria N+1 e remove antigos. Em falha propaga para a reversão. cleanup elimina o staging quando a operação terminou ou foi desfeita; se a reversão falha, ele é preservado para não apagar dados recuperáveis.
 
 ## Custos e limites de recuperação
 
@@ -33,7 +41,7 @@ As rotinas restauram o que conseguem em falhas normais; não fornecem journal pa
 
 ## Validação e exercícios
 
-SelectedStickersTest cobre seis cenários com diretórios temporários, incluindo 31 escolhas e falha de versão. SelectedStickersDeviceTest exercita um WebP válido no Android em raiz isolada. Nenhum desses testes confirma exportação real no WhatsApp.
+SelectedStickersTest cobre dez cenários, incluindo 31 escolhas, falha de versão/templates, promoção de inicial, duplicata reparadora e preservação de preenchimento modificado. SelectedStickersDeviceTest verifica as amostras reais dos dois tipos no Android em raiz isolada. Nenhum desses testes confirma exportação real no WhatsApp.
 
 **Pergunta:** por que o helper recebe assets, em vez de buscar FilesHelper internamente? **Resposta:** separa política de armazenamento e ambiente, facilita testes e evita Context Android nessa lógica.
 
