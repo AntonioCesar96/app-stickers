@@ -239,11 +239,11 @@ public class CropVideoActivity extends AppCompatActivity {
         cropOverlay.setMaxCropSize(screenW);
         cropOverlay.centerInitialCrop(screenW, screenW);
 
-        // inicia conversão (exemplo)
+        // Let the user choose the crop before creating a new sticker.
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (jobId == null) {
                 exodia = false;
-                convertMp4ToWebpAdaptive();
+                mostrarVideo();
             } else {
                 CompressionJob job = CompressionJob.load(this, jobId);
                 if (job != null) {

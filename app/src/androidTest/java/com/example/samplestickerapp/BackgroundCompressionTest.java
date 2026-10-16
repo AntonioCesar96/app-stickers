@@ -139,6 +139,20 @@ public class BackgroundCompressionTest {
         CompressionJob job = null;
         try {
             screen = (CropVideoActivity) instrumentation.startActivitySync(input());
+            CropVideoActivity initialEditor = screen;
+            long editorDeadline = System.currentTimeMillis() + 10000;
+            AtomicBoolean visible = new AtomicBoolean();
+            while (!visible.get() && System.currentTimeMillis() < editorDeadline) {
+                instrumentation.runOnMainSync(() -> visible.set(
+                        initialEditor.findViewById(R.id.btn_crop).isShown()));
+                Thread.sleep(100);
+            }
+            assertTrue("Crop controls must be available before conversion", visible.get());
+            assertNull("Opening crop must not start compression", CompressionJob.pending(context));
+            instrumentation.runOnMainSync(() -> {
+                assertFalse(initialEditor.findViewById(R.id.btn_salvar).isEnabled());
+                initialEditor.findViewById(R.id.btn_crop).performClick();
+            });
             job = awaitJob(false);
             String id = job.id;
             long notificationDeadline = System.currentTimeMillis() + 12000;

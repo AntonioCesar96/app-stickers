@@ -115,6 +115,17 @@ public class GifPipelineTest {
             assertEquals(1250L, crop.getIntent().getLongExtra(GifMedia.END_MS, -1));
             CropVideoActivity cropScreen = crop;
             ready.set(false);
+            deadline = System.currentTimeMillis() + 10000;
+            while (!ready.get() && System.currentTimeMillis() < deadline) {
+                instrumentation.runOnMainSync(() -> ready.set(cropScreen.findViewById(R.id.btn_crop).isShown()));
+                Thread.sleep(50);
+            }
+            assertTrue("Crop controls must be visible before starting", ready.get());
+            instrumentation.runOnMainSync(() -> {
+                assertFalse("Opening crop must wait for user action", cropScreen.findViewById(R.id.btn_salvar).isEnabled());
+                cropScreen.findViewById(R.id.btn_crop).performClick();
+            });
+            ready.set(false);
             deadline = System.currentTimeMillis() + 30000;
             while (!ready.get() && System.currentTimeMillis() < deadline) {
                 instrumentation.runOnMainSync(() -> ready.set(cropScreen.findViewById(R.id.btn_salvar).isEnabled()));
