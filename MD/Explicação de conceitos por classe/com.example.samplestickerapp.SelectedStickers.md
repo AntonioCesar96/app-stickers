@@ -1,13 +1,19 @@
 # SelectedStickers: arquivos, identidade e publicação das coleções
 
 Código: `app/src/main/java/com/example/samplestickerapp/SelectedStickers.java`.
-Atualização: 2026-10-16_16-55 — America/Cuiaba.
+Atualização: 2026-10-16_17-04 — America/Cuiaba.
 
 ## Responsabilidade e fundamentos
 
 Esta classe final, com visibilidade de pacote, aplica regras da coleção sem depender de Android Views ou Context. Recebe File como raiz explícita, o que permite usar armazenamento real no app e TemporaryFolder nos testes. Não guarda uma lista em memória entre chamadas; o estado persistente está no filesystem. A Activity é responsável por executar fora da thread principal e publicar o resultado no catálogo.
 
-MARKER é o nome `.selected-stickers`. `isCollection` verifica sua existência como arquivo. É a identidade da funcionalidade; um nome parecido não basta. Result transporta identifier, count, selectedCount, fillerCount e duplicate como campos finais. Seu construtor conta os WebP e classifica temporários pelos bytes atuais; não mantém contador paralelo que possa divergir do disco. A interface Templates fornece names/open para ler amostras sem acoplar esta classe ao Android.
+MARKER é o nome `.selected-stickers`. `isCollection` verifica sua existência como arquivo. É a identidade da funcionalidade; um nome parecido não basta. Result transporta identifier, name, count, selectedCount, fillerCount e duplicate como campos finais. identifier mantém o endereço persistente; name é o título público usado no WhatsApp. O construtor conta os WebP e classifica temporários pelos bytes atuais. Templates fornece names/open sem acoplar esta classe ao Android. Os dados agora ficam fora das listagens do aplicativo, mas permanecem acessíveis ao provedor.
+
+## Nome público e identidade
+
+displayName recebe o identificador e tipo, formando Individuais - estaticas ou Individuais - animadas. Uma expressão regular encontra um sufixo inteiro no final do identificador. Se for 2 ou maior, o nome recebe +(n-1), pois o segundo pacote é o primeiro adicional. Conversão fora do intervalo é ignorada e mantém a base. Não renomeia nenhum diretório. Isso permite mudar apresentação sem quebrar a referência authority/identifier já utilizada pelo WhatsApp.
+
+ContentsJsonHelper usa a mesma função para publicar o título no catálogo. A Activity utiliza Result.name na Intent. Essa regra única evita anunciar um nome na tela externa e outro nos metadados. A 31ª escolha continua criando outro conjunto de arquivos, mas seu título passa a Individuais - estaticas +1; os identificadores internos antigos são preservados.
 
 ## add: do pedido à decisão
 
@@ -41,7 +47,7 @@ As rotinas restauram o que conseguem em falhas normais; não fornecem journal pa
 
 ## Validação e exercícios
 
-SelectedStickersTest cobre dez cenários, incluindo 31 escolhas, falha de versão/templates, promoção de inicial, duplicata reparadora e preservação de preenchimento modificado. SelectedStickersDeviceTest verifica as amostras reais dos dois tipos no Android em raiz isolada. Nenhum desses testes confirma exportação real no WhatsApp.
+SelectedStickersTest cobre onze cenários, incluindo títulos públicos, 31 escolhas, falhas, promoção de inicial, duplicata reparadora e preservação de preenchimento modificado. A instrumentação verifica as amostras reais dos dois tipos e o filtro de visibilidade em raiz isolada. Nenhum desses testes confirma instalação real no WhatsApp.
 
 **Pergunta:** por que o helper recebe assets, em vez de buscar FilesHelper internamente? **Resposta:** separa política de armazenamento e ambiente, facilita testes e evita Context Android nessa lógica.
 

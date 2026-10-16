@@ -1,7 +1,7 @@
 # AddStickerPackActivity: a fronteira entre o app e o WhatsApp
 
 Código: `app/src/main/java/com/example/samplestickerapp/AddStickerPackActivity.java`.
-Atualização: 2026-10-16_16-38 — America/Cuiaba.
+Atualização: 2026-10-16_17-04 — America/Cuiaba.
 
 ## Responsabilidade e herança
 
@@ -15,7 +15,9 @@ Depois, ContentsJsonHelper.updatePackAndContentProvider atualiza versão/catálo
 
 ## Encontrar o destinatário e abrir Intent
 
-WhitelistCheck verifica instalação das variantes Consumer e Business e consulta se o pacote já foi adicionado. O código existente oferece chooser quando não está adicionado em nenhuma variante; no outro ramo prioriza Consumer. Há uma condição preexistente `x || !x` nesse ramo, logicamente sempre verdadeira. Esta tarefa não corrigiu a escolha entre variantes, portanto não se deve descrever esse caminho como uma política nova e perfeita de prioridade.
+WhitelistCheck verifica quais variantes estão instaladas. Se apenas Consumer estiver disponível, abre esse pacote explicitamente; se apenas Business, abre Business; com ambas, oferece o chooser do Android. Sem nenhuma, mostra orientação. Foi removida a condição antiga `x || !x`, sempre verdadeira, que podia selecionar Consumer indevidamente. A escolha do destino agora depende da disponibilidade, não de o pacote já estar adicionado.
+
+StickerPackDetailsActivity chama esta operação diretamente após preparar uma escolha individual, sem diálogo intermediário local. A integração continua baseada no pacote interno com mínimo de três e com metadados presentes no provider. A lista visual do app pode ocultar esse pacote sem interferir no contrato da Intent.
 
 `createIntentToAddStickerPack` monta a ação com.whatsapp.intent.action.ENABLE_STICKER_PACK e os extras de identificador, authority e nome. Authority identifica o ContentProvider do app; identifier identifica o pacote dentro dele. Esses dois valores juntos permitem localizar os dados. `launchIntentToAddPackToSpecificPackage` fixa o destino, enquanto `launchIntentToAddPackToChooser` deixa o Android mostrar opções. Ambos usam startActivityForResult com ADD_PACK e tratam ActivityNotFoundException com mensagem.
 

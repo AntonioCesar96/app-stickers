@@ -193,31 +193,15 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
                 ContentsJsonHelper.atualizaContentsJson();
                 ContentsJsonHelper.atualizaContentProvider(this);
                 ContentsJsonHelper.packsChanged = true;
-                StickerPack destination = null;
-                for (StickerPack pack : StickerPackLoader.fetchStickerPacks(this))
-                    if (pack.identifier.equals(result.identifier)) destination = pack;
-                if (destination == null) throw new IOException("Não foi possível carregar o pacote de selecionadas.");
-                StickerPack selectedPack = destination;
                 runOnUiThread(() -> {
                     savingSelected = false;
                     if (isFinishing() || isDestroyed()) return;
-                    String message = (result.duplicate ? "Esta figurinha já está em " : "Figurinha copiada para ")
-                            + result.identifier + ".\n\n" + result.selectedCount + " escolhida(s) e "
-                            + result.fillerCount + " inicial(is) temporária(s). " + result.count + "/30 no pacote."
-                            + (result.fillerCount > 0 ? " As iniciais serão substituídas conforme você escolher novas figurinhas." : "")
-                            + " O pacote já pode ser adicionado ao WhatsApp.";
-                    AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle("Figurinhas selecionadas")
-                            .setMessage(message).setNegativeButton("Continuar escolhendo", null)
-                            .setNeutralButton("Ver pacote", (d, which) -> startActivity(new Intent(this, StickerPackDetailsActivity.class)
-                                    .putExtra("sticker_pack", selectedPack).putExtra(EXTRA_SHOW_UP_BUTTON, true)));
-                    if (result.count >= 3) builder.setPositiveButton("Adicionar ao WhatsApp",
-                            (d, which) -> addStickerPackToWhatsApp(selectedPack.identifier, selectedPack.name));
-                    builder.show();
+                    addStickerPackToWhatsApp(result.identifier, result.name);
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     savingSelected = false;
-                    if (!isFinishing() && !isDestroyed()) Toast.makeText(this, "Não foi possível adicionar às selecionadas: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                    if (!isFinishing() && !isDestroyed()) Toast.makeText(this, "Não foi possível preparar a figurinha para o WhatsApp: " + error.getMessage(), Toast.LENGTH_LONG).show();
                 });
             }
         }, "selected-sticker-copy").start();

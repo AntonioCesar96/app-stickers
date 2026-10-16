@@ -28,11 +28,14 @@ final class SelectedStickers {
 
     static final class Result {
         final String identifier;
+        final String name;
         final int count;
         final int selectedCount, fillerCount;
         final boolean duplicate;
         Result(File directory, boolean duplicate) throws IOException {
-            identifier = directory.getName(); count = webps(directory).length; this.duplicate = duplicate;
+            identifier = directory.getName();
+            name = displayName(identifier, new File(directory, "animado.txt").isFile());
+            count = webps(directory).length; this.duplicate = duplicate;
             int fillers = 0;
             for (File file : webps(directory)) if (isFiller(file)) fillers++;
             fillerCount = fillers; selectedCount = count - fillers;
@@ -40,6 +43,19 @@ final class SelectedStickers {
     }
 
     static boolean isCollection(File directory) { return new File(directory, MARKER).isFile(); }
+
+    /** Keep persisted identifiers stable; only the WhatsApp-facing title changes. */
+    static String displayName(String identifier, boolean animated) {
+        String base = animated ? "Individuais - animadas" : "Individuais - estaticas";
+        java.util.regex.Matcher suffix = java.util.regex.Pattern.compile(" ([0-9]+)$").matcher(identifier);
+        if (suffix.find()) {
+            try {
+                int number = Integer.parseInt(suffix.group(1));
+                if (number >= 2) return base + " +" + (number - 1);
+            } catch (NumberFormatException ignored) { }
+        }
+        return base;
+    }
 
     static synchronized Result add(File assets, String sourceId, String name, boolean animated, Templates templates) throws IOException {
         File root = assets.getCanonicalFile(), source = new File(root, sourceId).getCanonicalFile();

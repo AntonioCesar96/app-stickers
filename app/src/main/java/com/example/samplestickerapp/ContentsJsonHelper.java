@@ -26,7 +26,10 @@ public class ContentsJsonHelper {
     public static ArrayList<Sticker> stickersAlterados = new ArrayList<>();
 
     public static ArrayList<StickerPackModel> getStickerPacks() {
-        File assetsDir = getAssetsDir();
+        return getStickerPacks(getAssetsDir());
+    }
+
+    static ArrayList<StickerPackModel> getStickerPacks(File assetsDir) {
 
         List<Pasta> pastas = new ArrayList<>();
         File[] diretorios = assetsDir.listFiles(File::isDirectory);
@@ -43,7 +46,7 @@ public class ContentsJsonHelper {
 
             boolean ehAnimado = arquivosAnimadosList != null && arquivosAnimadosList.length > 0;
             int versao = 1;
-            if (versaoList != null) {
+            if (versaoList != null && versaoList.length > 0) {
                 String versaoTxt = versaoList[0].getName().replace(".txt", "").replace("v_", "");
                 versao = Integer.parseInt(versaoTxt);
             }
@@ -65,7 +68,8 @@ public class ContentsJsonHelper {
         for (Pasta pasta : pastas) {
 
             final String identifier = pasta.nome;
-            final String name = pasta.nome;
+            final String name = SelectedStickers.isCollection(new File(assetsDir, identifier))
+                    ? SelectedStickers.displayName(identifier, pasta.ehAnimado) : pasta.nome;
             final String publisher = "Antonio";
             final String trayImage = "icone.png";
             final String publisherEmail = "antoniocss19@gmail.com";

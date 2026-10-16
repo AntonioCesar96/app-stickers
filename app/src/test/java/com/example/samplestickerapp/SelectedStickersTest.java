@@ -65,9 +65,10 @@ public class SelectedStickersTest {
         for (int i = 1; i <= 31; i++) {
             sticker(source, i + "_a.webp", i);
             SelectedStickers.Result result = add(assets, "source", i + "_a.webp", false);
-            if (i == 1) first = result.identifier;
+            if (i == 1) { first = result.identifier; assertEquals("Individuais - estaticas", result.name); }
             if (i == 30) assertEquals(30, result.count);
-            if (i == 31) { assertEquals(1, result.selectedCount); assertEquals(3, result.count); assertNotEquals(first, result.identifier); }
+            if (i == 31) { assertEquals(1, result.selectedCount); assertEquals(3, result.count); assertNotEquals(first, result.identifier);
+                assertEquals("Individuais - estaticas +1", result.name); }
         }
         SelectedStickers.Result duplicate = add(assets, "source", "1_a.webp", false);
         assertTrue(duplicate.duplicate); assertEquals(first, duplicate.identifier); assertEquals(30, duplicate.count);
@@ -103,6 +104,13 @@ public class SelectedStickersTest {
             return new java.io.ByteArrayInputStream(new byte[]{(byte) (201 + Integer.parseInt(name.substring(0, 1))), 2, 3});
         }
     };
+
+    @Test public void whatsappNamesPreserveInternalIdentifiersAndSeparateTypes() {
+        assertEquals("Individuais - animadas", SelectedStickers.displayName("Selecionadas - animadas", true));
+        assertEquals("Individuais - animadas +1", SelectedStickers.displayName("Selecionadas - animadas 2", true));
+        assertEquals("Individuais - estaticas +2", SelectedStickers.displayName("Selecionadas - estaticas 3", false));
+        assertEquals("Individuais - estaticas", SelectedStickers.displayName("custom", false));
+    }
 
     @Test public void duplicateAlsoRepairsOldIncompleteCollection() throws Exception {
         File assets = temp.newFolder("assets"), source = source(assets, "source", false);

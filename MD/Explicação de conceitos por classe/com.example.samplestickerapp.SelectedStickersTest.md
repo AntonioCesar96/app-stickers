@@ -1,7 +1,7 @@
 # SelectedStickersTest: verificar efeitos persistentes em isolamento
 
 Código: `app/src/test/java/com/example/samplestickerapp/SelectedStickersTest.java`.
-Atualização: 2026-10-16_16-55 — America/Cuiaba.
+Atualização: 2026-10-16_17-04 — America/Cuiaba.
 
 ## Ambiente e responsabilidade
 
@@ -13,22 +13,23 @@ source cria diretório, ícone fictício e, quando solicitado, marcador animado.
 
 A interface Templates é implementada no teste com três nomes e ByteArrayInputStream de conteúdos distintos. Isso reproduz leitura de bytes das iniciais sem AssetManager ou arquivos de instalação. O método auxiliar add injeta essa fonte no helper de produção. Os resultados distinguem count físico, selectedCount e fillerCount: uma escolha tem count=3, selectedCount=1, fillerCount=2.
 
-## Os dez cenários
+## Os onze cenários
 
 1. copiesOriginalBytesPreservesSourceAndBuildsDraftThenReadyPack adiciona três entradas em sequência. Apesar do nome histórico do método, agora cada estado tem total três: 1+2, 2+1, 3+0. Verifica origem, cópia, ícone, marcador e v_3 sem v_1.
 2. deduplicatesIdenticalBytesAcrossSourcesAndNames usa nomes e pacotes diferentes com bytes iguais. Exige mesmo destino, duplicate=true e contagem inalterada.
 3. separatesTypesAndNeverReusesUnmanagedNameCollision prepara um diretório comum com o nome padrão. Exige novo nome numerado e coleção animada distinta com animado.txt.
-4. startsNextPackAtThirtyAndFindsDuplicatesInFullPack cria 31 escolhas diferentes. Confere 30 no primeiro e uma escolha mais duas temporárias no segundo, depois encontra duplicata no primeiro cheio.
+4. startsNextPackAtThirtyAndFindsDuplicatesInFullPack cria 31 escolhas diferentes. Confere 30 no primeiro, uma escolha mais duas temporárias no segundo e o nome público Individuais - estaticas +1, depois encontra duplicata no primeiro cheio.
 5. rejectsMissingOrEscapingSourceAndLeavesNoPartialPack exercita entradas indevidas, tipo inconsistente, arquivo ausente e falta de ícone. Confere que não surgiu coleção incompleta nem staging residual em falha normal.
 6. failedVersionUpdateRollsBackOnlyNewCopy injeta versão máxima, tenta nova escolha e confere os três arquivos anteriores preservados, sem publicação parcial e com origem intacta. Testa a reversão após cópia e retirada de temporários.
 7. duplicateAlsoRepairsOldIncompleteCollection remove os preenchimentos para simular uma coleção antiga e tenta adicionar uma escolha repetida. Exige duplicate=true, uma permanente e duas temporárias: deduplicação não dispensa reparo.
 8. explicitlyChoosingAnInitialPromotesItAndDoesNotDeduplicateAgainstFiller escolhe uma das amostras como permanente e depois clica nos temporários restantes. Eles viram escolhas e a transição termina em três permanentes sem temporários.
 9. templateFailureRollsBackAdditionAndKeepsPreviousFillers injeta uma fonte vazia ao tentar adicionar a segunda escolha. Exige falha, três arquivos anteriores e v_1 preservados. Preparar antes de publicar evita estado incompleto.
 10. modifiedFillerIsPreservedAsARealChoice altera os bytes de uma cópia temporária sem atualizar o nome. Ao adicionar outra escolha, exige que o conteúdo modificado permaneça e seja contado como permanente, não removido pelo algoritmo.
+11. whatsappNamesPreserveInternalIdentifiersAndSeparateTypes verifica bases por tipo e conversão de sufixos internos em +1/+2. Mantém a identidade persistente separada do nome de exibição, sem renomear diretórios.
 
 ## O que os resultados significam
 
-Os testes verificam conteúdo e efeitos observáveis, sem apenas espelhar todos os métodos privados. Não demonstram validade WebP, comportamento do ContentProvider, interface ou exportação ao WhatsApp. Os dez testes passaram no computador; a validação Android complementa com assets reais dos dois tipos. Os cenários usam estruturas temporárias e não alteram os pacotes do usuário.
+Os testes verificam conteúdo e efeitos observáveis, sem apenas espelhar todos os métodos privados. Não demonstram validade WebP, comportamento do ContentProvider, interface ou aceitação pelo WhatsApp. Os onze testes passaram no computador; a validação Android complementa com assets reais e filtro de apresentação. Os cenários usam estruturas temporárias e não alteram os pacotes do usuário.
 
 **Exercício:** por que testar 31 itens em vez de só testar o número 30 numa função? **Resposta:** o cenário demonstra criação, preenchimento, transbordo e reconhecimento de duplicata no pacote anterior, incluindo efeitos de arquivo que uma condição isolada não prova.
 

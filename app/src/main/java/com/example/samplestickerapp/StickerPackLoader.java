@@ -55,7 +55,7 @@ class StickerPackLoader {
         HashSet<String> identifierSet = new HashSet<>();
         final ArrayList<StickerPack> stickerPackList;
         try (Cursor ownedCursor = cursor) {
-            stickerPackList = fetchFromContentProvider(ownedCursor);
+            stickerPackList = visiblePacks(FilesHelper.getAssetsDir(), fetchFromContentProvider(ownedCursor));
         }
         for (StickerPack stickerPack : stickerPackList) {
             if (identifierSet.contains(stickerPack.identifier)) {
@@ -73,6 +73,14 @@ class StickerPackLoader {
             StickerPackValidator.verifyStickerPackValidity(context, stickerPack);
         }
         return stickerPackList;
+    }
+
+    /** The provider retains every pack for WhatsApp; app screens see only normal packs. */
+    static ArrayList<StickerPack> visiblePacks(java.io.File assets, List<StickerPack> providerPacks) {
+        ArrayList<StickerPack> visible = new ArrayList<>();
+        for (StickerPack pack : providerPacks)
+            if (!SelectedStickers.isCollection(new java.io.File(assets, pack.identifier))) visible.add(pack);
+        return visible;
     }
 
     @NonNull

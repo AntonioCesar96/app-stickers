@@ -1,7 +1,7 @@
 # StickerPackDetailsActivity: detalhes, edição e escolha individual
 
 Código: `app/src/main/java/com/example/samplestickerapp/StickerPackDetailsActivity.java`.
-Atualização: 2026-10-16_16-55 — America/Cuiaba.
+Atualização: 2026-10-16_17-04 — America/Cuiaba.
 
 ## Responsabilidade e colaboração
 
@@ -27,11 +27,11 @@ onOptionsItemSelected trata mover via bottom sheet com verificação de manter t
 
 O novo método recebe o Sticker escolhido. Se savingSelected já for true, retorna. Captura identificador/tipo da origem e inicia uma Thread nomeada selected-sticker-copy. Essa captura evita depender de uma substituição posterior do campo stickerPack para determinar de onde copiar.
 
-Dentro da thread, SelectedStickers.add recebe também InitialStickerTemplates(getAssets()), copia ou reconhece duplicata e reconcilia preenchimento para manter três. A fonte lê os mesmos assets da Splash sem depender das cópias externas. Retorna destino, escolhidas, iniciais temporárias e total. Depois a tela regenera JSON, limpa cache do ContentProvider, marca packsChanged e busca o destino pelo identificador. A tolerância do validador a rascunhos continua útil para dados legados, mas adições bem-sucedidas agora completam o mínimo automaticamente.
+Dentro da thread, SelectedStickers.add recebe InitialStickerTemplates(getAssets()), copia ou reconhece duplicata e reconcilia preenchimento para manter três. Retorna identificador persistente e título público do pacote Individuais. A tela regenera JSON, limpa cache do ContentProvider e marca packsChanged. Não busca o destino no loader visual: o loader agora exclui os individuais porque são dados internos para a integração, não destinos de edição no app.
 
-Em runOnUiThread libera savingSelected, verifica se a Activity ainda existe e apresenta a confirmação. Distingue duplicata de cópia, informa escolhidas, temporárias e total N/30 e explica a substituição das iniciais. Ver pacote abre os detalhes do destino; Continuar escolhendo fecha a mensagem; com três ou mais, Adicionar ao WhatsApp chama a integração herdada para a coleção. O preenchimento permite oferecer essa ação desde a primeira escolha. Nunca exporta automaticamente o pacote de origem.
+Em runOnUiThread libera savingSelected, verifica se a Activity ainda existe e chama diretamente `addStickerPackToWhatsApp(result.identifier, result.name)`. Foram retirados a confirmação local, Ver pacote e Continuar escolhendo. O preenchimento permite abrir a inclusão desde a primeira escolha. O pacote original nunca é o destino dessa chamada. O WhatsApp decide sua confirmação final; abrir a integração não significa que já houve aceitação.
 
-Exceções também voltam à thread principal e mostram erro apenas se a tela ainda está ativa. A cópia pode concluir se o usuário sair durante a thread; o resultado já persistido permanece, mas não é garantido reapresentar o diálogo após recriação. Não foi criado serviço nem job durável para essa operação curta. Hash/cópia/consulta ficam fora da thread principal para preservar interação; navegar e desenhar ficam nela.
+Exceções voltam à thread principal e mostram erro se a tela ainda estiver ativa. A cópia pode concluir se o usuário sair durante a thread; os dados permanecem, mas a tela externa não é aberta depois para uma Activity encerrada. Não existe job que reabra o WhatsApp após morte do processo sem novo clique. Cancelar no destinatário também não remove os dados preparados: o próximo clique pode repetir a inclusão sem duplicar a figurinha.
 
 ## Importação, download e exportação existentes
 
@@ -47,8 +47,8 @@ O teste Android abre detalhes de um pacote real, toca a célula e verifica posi�
 
 O fluxo da coleção reutiliza o catálogo atual; a gravação dos bytes e a reconstrução do JSON não são uma única transação. O adapter e o worker têm responsabilidades distintas, mas esta Activity ainda reúne múltiplas funcionalidades preexistentes: não foi realizada uma migração completa para ViewModel ou repositório.
 
-**Exercício:** por que buscar o destino pelo identificador em vez de usar o pacote atual? **Resposta:** a figurinha continua no original; a exportação e a navegação precisam apontar para a coleção que recebeu sua cópia.
+**Exercício:** por que usar Result.identifier em vez do pacote atual? **Resposta:** a figurinha continua no original; a inclusão precisa apontar para os dados internos de Individuais. O loader de UI não deve mais ser usado para reencontrar esse destino, pois o oculta deliberadamente.
 
-**Exercício:** se a tela fechar após a cópia, a figurinha volta à origem? **Resposta:** ela nunca saiu da origem. A cópia concluída permanece na coleção; apenas a confirmação visual pode não aparecer.
+**Exercício:** se a tela fechar após a cópia, a figurinha volta à origem? **Resposta:** nunca saiu da origem. Os dados internos concluídos permanecem; a abertura externa só ocorre para a instância ativa.
 
 [Aula da alteração](../Explicação%20de%20conceitos%20por%20alterações/2026-10-16_16-38_reunir-figurinhas-escolhidas-em-pacotes-selecionadas.md)

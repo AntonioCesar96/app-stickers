@@ -14,6 +14,29 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class SelectedStickersDeviceTest {
+    @Test public void individualMetadataRemainsAvailableButAppListHidesIt() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        File workspace = new File(context.getCacheDir(), "individual-visibility-" + UUID.randomUUID());
+        File assets = new File(workspace, "assets");
+        File normal = new File(assets, "normal"); assertTrue(normal.mkdirs());
+        File internal = new File(assets, "Selecionadas - estaticas 2"); assertTrue(internal.mkdir());
+        assertTrue(new File(internal, ".selected-stickers").createNewFile());
+        try {
+            java.util.ArrayList<StickerPackModel> models = ContentsJsonHelper.getStickerPacks(assets);
+            assertEquals(2, models.size());
+            StickerPackModel individual = models.stream().filter(p -> p.identifier.equals(internal.getName())).findFirst().get();
+            assertEquals("Individuais - estaticas +1", individual.name);
+            assertEquals(internal.getName(), individual.identifier);
+            java.util.ArrayList<StickerPack> provider = new java.util.ArrayList<>();
+            for (StickerPackModel model : models) provider.add(new StickerPack(model.identifier, model.name, model.publisher,
+                    model.trayImageFile, model.publisherEmail, model.publisherWebsite, model.privacyPolicyWebsite,
+                    model.licenseAgreementWebsite, model.imageDataVersion, model.avoidCache, model.animatedStickerPack));
+            java.util.ArrayList<StickerPack> visible = StickerPackLoader.visiblePacks(assets, provider);
+            assertEquals(1, visible.size()); assertEquals("normal", visible.get(0).identifier);
+            assertEquals(2, provider.size()); // Filtering must not remove WhatsApp's metadata.
+        } finally { ContentsJsonHelper.deleteRecursive(workspace); }
+    }
+
     @Test public void bundledStaticAndAnimatedSamplesFillThenDisappearAsChoicesArrive() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         InitialStickerTemplates templates = new InitialStickerTemplates(context.getAssets());

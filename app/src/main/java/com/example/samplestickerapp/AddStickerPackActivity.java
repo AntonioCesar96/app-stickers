@@ -40,21 +40,18 @@ public abstract class AddStickerPackActivity extends BaseActivity {
             ContentsJsonHelper.updatePackAndContentProvider(identifier, this);
 
             //if neither WhatsApp Consumer or WhatsApp Business is installed, then tell user to install the apps.
-            if (!WhitelistCheck.isWhatsAppConsumerAppInstalled(getPackageManager()) && !WhitelistCheck.isWhatsAppSmbAppInstalled(getPackageManager())) {
+            boolean consumerInstalled = WhitelistCheck.isWhatsAppConsumerAppInstalled(getPackageManager());
+            boolean businessInstalled = WhitelistCheck.isWhatsAppSmbAppInstalled(getPackageManager());
+            if (!consumerInstalled && !businessInstalled) {
                 Toast.makeText(this, R.string.add_pack_fail_prompt_update_whatsapp, Toast.LENGTH_LONG).show();
                 return;
             }
-            final boolean stickerPackWhitelistedInWhatsAppConsumer = WhitelistCheck.isStickerPackWhitelistedInWhatsAppConsumer(this, identifier);
-            final boolean stickerPackWhitelistedInWhatsAppSmb = WhitelistCheck.isStickerPackWhitelistedInWhatsAppSmb(this, identifier);
-            if (!stickerPackWhitelistedInWhatsAppConsumer && !stickerPackWhitelistedInWhatsAppSmb) {
-                //ask users which app to add the pack to.
-                launchIntentToAddPackToChooser(identifier, stickerPackName);
-            } else if (stickerPackWhitelistedInWhatsAppConsumer || !stickerPackWhitelistedInWhatsAppConsumer) {
+            if (consumerInstalled && !businessInstalled) {
                 launchIntentToAddPackToSpecificPackage(identifier, stickerPackName, WhitelistCheck.CONSUMER_WHATSAPP_PACKAGE_NAME);
-            } else if (!stickerPackWhitelistedInWhatsAppSmb) {
+            } else if (businessInstalled && !consumerInstalled) {
                 launchIntentToAddPackToSpecificPackage(identifier, stickerPackName, WhitelistCheck.SMB_WHATSAPP_PACKAGE_NAME);
             } else {
-                Toast.makeText(this, R.string.add_pack_fail_prompt_update_whatsapp, Toast.LENGTH_LONG).show();
+                launchIntentToAddPackToChooser(identifier, stickerPackName);
             }
         } catch (Exception e) {
             Log.e(TAG, "error adding sticker pack to WhatsApp", e);

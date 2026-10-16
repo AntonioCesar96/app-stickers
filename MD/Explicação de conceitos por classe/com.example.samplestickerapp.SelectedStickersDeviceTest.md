@@ -1,7 +1,7 @@
 # SelectedStickersDeviceTest: prévia e WebP real no Android
 
 Código: `app/src/androidTest/java/com/example/samplestickerapp/SelectedStickersDeviceTest.java`.
-Atualização: 2026-10-16_16-55 — America/Cuiaba.
+Atualização: 2026-10-16_17-04 — America/Cuiaba.
 
 ## Instrumentação e thread principal
 
@@ -29,7 +29,13 @@ As asserções exigem total três, i+1 escolhas, 2-i temporárias, ausência de 
 
 ## Limites e exercício
 
-Os três testes passaram no aparelho conectado (4,176 s nesta tarefa). Precisam de catálogo acessível para a prévia; as cópias usam raízes isoladas. Pausas de layout/imagem não são benchmark nem garantia universal de prontidão. O teste de assets não automatiza a instalação final no WhatsApp nem simula morte abrupta do processo.
+Os quatro testes passaram no aparelho conectado (4,134 s na alteração de fluxo direto). Precisam de catálogo acessível para a prévia; cópias e metadados adicionais usam raízes isoladas. Pausas de layout/imagem não são benchmark nem garantia universal de prontidão. Não automatizam confirmação no WhatsApp nem morte abrupta do processo.
+
+## Dados completos e projeção visível
+
+individualMetadataRemainsAvailableButAppListHidesIt cria em cache um diretório comum e outro com marcador de individuais. A sobrecarga de ContentsJsonHelper.getStickerPacks(File) gera os dois modelos, com o título Individuais - estaticas +1 e o identificador antigo preservado. A ausência de marcador de versão nas pastas também exercita o tratamento de array vazio.
+
+Converte os modelos em StickerPack e passa a lista completa a StickerPackLoader.visiblePacks. Exige apenas o pacote normal na saída e os dois ainda presentes na entrada. Isso prova que o filtro de interface não muta os metadados completos. Não faz consulta do WhatsApp nem confirma uma exportação externa: é uma verificação da projeção de dados usada pela aplicação.
 
 **Exercício:** por que a captura não substitui assertTrue(button.isShown())? **Resposta:** imagem exige inspeção humana; a asserção falha automaticamente quando a estrutura funcional não aparece. Os dois mecanismos verificam aspectos diferentes.
 
