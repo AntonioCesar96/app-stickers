@@ -116,7 +116,9 @@ class StickerPackValidator {
             throw new IllegalStateException("Cannot open tray image, " + stickerPack.trayImageFile, e);
         }
         final List<Sticker> stickers = stickerPack.getStickers();
-        if (stickers.size() < STICKER_SIZE_MIN || stickers.size() > STICKER_SIZE_MAX) {
+        // Managed selections may be drafts; WhatsApp export still requires at least three.
+        int minimum = SelectedStickers.isCollection(new java.io.File(FilesHelper.getAssetsDir(), stickerPack.identifier)) ? 1 : STICKER_SIZE_MIN;
+        if (stickers.size() < minimum || stickers.size() > STICKER_SIZE_MAX) {
             throw new IllegalStateException("sticker pack sticker count should be between 3 to 30 inclusive, it currently has " + stickers.size() + ", nome do pacote: " + stickerPack.identifier);
         }
         for (final Sticker sticker : stickers) {

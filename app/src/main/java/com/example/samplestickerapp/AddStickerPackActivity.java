@@ -31,6 +31,12 @@ public abstract class AddStickerPackActivity extends BaseActivity {
 
     protected void addStickerPackToWhatsApp(String identifier, String stickerPackName) {
         try {
+            java.io.File directory = new java.io.File(FilesHelper.getAssetsDir(), identifier);
+            java.io.File[] stickers = directory.listFiles((dir, name) -> name.toLowerCase(java.util.Locale.ROOT).endsWith(".webp"));
+            if (stickers == null || stickers.length < 3) {
+                Toast.makeText(this, "Escolha pelo menos 3 figurinhas neste pacote antes de adicionar ao WhatsApp.", Toast.LENGTH_LONG).show();
+                return;
+            }
             ContentsJsonHelper.updatePackAndContentProvider(identifier, this);
 
             //if neither WhatsApp Consumer or WhatsApp Business is installed, then tell user to install the apps.

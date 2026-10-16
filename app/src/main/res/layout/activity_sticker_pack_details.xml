@@ -98,12 +98,32 @@
             android:paddingRight="@dimen/preview_side_margin"
             android:requiresFadingEdge="vertical" />
 
+        <LinearLayout
+            android:id="@+id/selected_sticker_preview"
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:background="#FFFFFF"
+            android:elevation="8dp"
+            android:padding="8dp"
+            android:visibility="invisible">
         <com.facebook.drawee.view.SimpleDraweeView
             android:id="@+id/sticker_details_expanded_sticker"
             android:layout_width="188dp"
             android:layout_height="188dp"
-            android:scaleType="centerCrop"
-            android:visibility="invisible" />
+            android:scaleType="centerCrop" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/add_selected_sticker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#128C7E"
+            android:textColor="#FFFFFF"
+            android:textAllCaps="false"
+            android:text="Adicionar às selecionadas" />
+        </LinearLayout>
 
         <View
             android:id="@+id/divider"

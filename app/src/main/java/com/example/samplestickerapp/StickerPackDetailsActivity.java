@@ -103,6 +103,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private AlertDialog dialog;
     private MenuItem deleteMenuItem;
     private MenuItem moveMenuItem, addMenuItem, downloadMenuItem;
+    private boolean savingSelected;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,9 +132,14 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             adapter = new StickerPreviewAdapter(getLayoutInflater(), R.drawable.sticker_error, getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_size), getResources().getDimensionPixelSize(R.dimen.sticker_pack_details_image_padding),
                     stickerPack, expandedStickerView, getOnUpdateSizeListener(), getOnSelectionListener());
             recyclerView.setAdapter(adapter);
+            adapter.setOnAddSelected(this::addSelectedSticker);
         }
         packNameTextView.setText(stickerPack.name);
         packPublisherTextView.setText(stickerPack.getStickers().size() + " figurinhas");
+        if (SelectedStickers.isCollection(new File(FilesHelper.getAssetsDir(), stickerPack.identifier))
+                && stickerPack.getStickers().size() < 3) {
+            packPublisherTextView.append(" · Faltam " + (3 - stickerPack.getStickers().size()) + " para o WhatsApp");
+        }
         packTrayIcon.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile));
         packSizeTextView.setText(String.format(new Locale("pt", "BR"), "%.2f", (double) stickerPack.getTotalSize() / 1024.0) + " KB");
 
@@ -173,6 +179,45 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             ArrayList<String> selected = savedInstanceState.getStringArrayList("selected_stickers");
             if (selected != null) adapter.restoreSelection(selected);
         }
+    }
+
+    private void addSelectedSticker(Sticker sticker) {
+        if (savingSelected) return;
+        savingSelected = true;
+        final String sourceId = stickerPack.identifier;
+        final boolean animated = stickerPack.animatedStickerPack;
+        new Thread(() -> {
+            try {
+                SelectedStickers.Result result = SelectedStickers.add(FilesHelper.getAssetsDir(), sourceId, sticker.imageFileName, animated);
+                ContentsJsonHelper.atualizaContentsJson();
+                ContentsJsonHelper.atualizaContentProvider(this);
+                ContentsJsonHelper.packsChanged = true;
+                StickerPack destination = null;
+                for (StickerPack pack : StickerPackLoader.fetchStickerPacks(this))
+                    if (pack.identifier.equals(result.identifier)) destination = pack;
+                if (destination == null) throw new IOException("Não foi possível carregar o pacote de selecionadas.");
+                StickerPack selectedPack = destination;
+                runOnUiThread(() -> {
+                    savingSelected = false;
+                    if (isFinishing() || isDestroyed()) return;
+                    String message = (result.duplicate ? "Esta figurinha já está em " : "Figurinha copiada para ")
+                            + result.identifier + ".\n\n" + result.count + "/30 figurinhas."
+                            + (result.count < 3 ? " Escolha mais " + (3 - result.count) + " para adicionar o pacote ao WhatsApp." : " O pacote já pode ser adicionado ao WhatsApp.");
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle("Figurinhas selecionadas")
+                            .setMessage(message).setNegativeButton("Continuar escolhendo", null)
+                            .setNeutralButton("Ver pacote", (d, which) -> startActivity(new Intent(this, StickerPackDetailsActivity.class)
+                                    .putExtra("sticker_pack", selectedPack).putExtra(EXTRA_SHOW_UP_BUTTON, true)));
+                    if (result.count >= 3) builder.setPositiveButton("Adicionar ao WhatsApp",
+                            (d, which) -> addStickerPackToWhatsApp(selectedPack.identifier, selectedPack.name));
+                    builder.show();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    savingSelected = false;
+                    if (!isFinishing() && !isDestroyed()) Toast.makeText(this, "Não foi possível adicionar às selecionadas: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }, "selected-sticker-copy").start();
     }
 
     private StickerPreviewAdapter.OnUpdateSizeListener getOnUpdateSizeListener() {

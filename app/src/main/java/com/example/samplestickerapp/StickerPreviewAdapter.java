@@ -43,6 +43,8 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     private final int cellPadding;
     private final int errorResource;
     private final SimpleDraweeView expandedStickerPreview;
+    private final View expandedPreviewContainer;
+    private java.util.function.Consumer<Sticker> onAddSelected;
 
     private final LayoutInflater layoutInflater;
     private RecyclerView recyclerView;
@@ -78,9 +80,12 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         this.errorResource = errorResource;
         this.stickerPack = stickerPack;
         this.expandedStickerPreview = expandedStickerView;
+        this.expandedPreviewContainer = (View) expandedStickerView.getParent();
         this.onUpdateSizeListener = onUpdateSizeListener;
         this.onSelectionListener = onSelectionListener;
     }
+
+    void setOnAddSelected(java.util.function.Consumer<Sticker> listener) { onAddSelected = listener; }
 
     @NonNull
     @Override
@@ -117,6 +122,7 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
         // Clique e long-click
         holder.stickerPreviewView.setOnLongClickListener(v -> {
             if (!selectionMode) {
+                hideExpandedStickerPreview();
                 // entrar em modo seleção
                 selectionMode = true;
                 selectedPositions.add(position);
@@ -287,8 +293,8 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             final float clickedViewCenterY =
                     clickedStickerPreview.getY() + clickedStickerPreview.getHeight() / 2f;
 
-            expandedViewLeftX = clickedViewCenterX - expandedStickerPreview.getWidth() / 2f;
-            expandedViewTopY = clickedViewCenterY - expandedStickerPreview.getHeight() / 2f;
+            expandedViewLeftX = clickedViewCenterX - expandedPreviewContainer.getWidth() / 2f;
+            expandedViewTopY = clickedViewCenterY - expandedPreviewContainer.getHeight() / 2f;
 
             // If the new x or y positions are negative, anchor them to 0 to avoid clipping
             // the left side of the device and the top of the recycler view.
@@ -300,19 +306,19 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             final float adjustmentX =
                     Math.max(
                             expandedViewLeftX
-                                    + expandedStickerPreview.getWidth()
+                                    + expandedPreviewContainer.getWidth()
                                     - recyclerViewWidth
                                     - recyclerViewRightMargin,
                             0);
             final float adjustmentY =
-                    Math.max(expandedViewTopY + expandedStickerPreview.getHeight() - recyclerViewHeight, 0);
+                    Math.max(expandedViewTopY + expandedPreviewContainer.getHeight() - recyclerViewHeight, 0);
 
             expandedViewLeftX -= adjustmentX;
             expandedViewTopY -= adjustmentY;
 
 
-            expandedStickerPreview.setX(expandedViewLeftX);
-            expandedStickerPreview.setY(expandedViewTopY);
+            expandedPreviewContainer.setX(Math.max(0, expandedViewLeftX));
+            expandedPreviewContainer.setY(Math.max(0, expandedViewTopY));
         }
     }
 
@@ -334,7 +340,12 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
             expandedStickerPreview.setImageResource(errorResource);
             expandedStickerPreview.setController(controller);
 
-            expandedStickerPreview.setVisibility(View.VISIBLE);
+            expandedPreviewContainer.setVisibility(View.VISIBLE);
+            expandedPreviewContainer.findViewById(R.id.add_selected_sticker).setOnClickListener(v -> {
+                Sticker selected = stickerPack.getStickers().get(position);
+                hideExpandedStickerPreview();
+                if (onAddSelected != null) onAddSelected.accept(selected);
+            });
             recyclerView.setAlpha(EXPANDED_STICKER_PREVIEW_BACKGROUND_ALPHA);
 
             expandedStickerPreview.setOnClickListener(v -> hideExpandedStickerPreview());
@@ -344,13 +355,13 @@ public class StickerPreviewAdapter extends RecyclerView.Adapter<StickerPreviewVi
     public void hideExpandedStickerPreview() {
         if (isStickerPreviewExpanded() && expandedStickerPreview != null) {
             clickedStickerPreview.setVisibility(View.VISIBLE);
-            expandedStickerPreview.setVisibility(View.INVISIBLE);
+            expandedPreviewContainer.setVisibility(View.INVISIBLE);
             recyclerView.setAlpha(COLLAPSED_STICKER_PREVIEW_BACKGROUND_ALPHA);
         }
     }
 
     private boolean isStickerPreviewExpanded() {
-        return expandedStickerPreview != null && expandedStickerPreview.getVisibility() == View.VISIBLE;
+        return expandedStickerPreview != null && expandedPreviewContainer.getVisibility() == View.VISIBLE;
     }
 
     @Override
