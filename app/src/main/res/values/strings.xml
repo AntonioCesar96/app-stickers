@@ -60,4 +60,6 @@
     <string name="move_loading">Carregando pacotes…</string>
     <string name="move_running">Movendo figurinhas…</string>
     <string name="move_success">Figurinhas movidas para %1$s</string>
+    <string name="webp_lower_quality_warning">Tentamos manter uma boa qualidade, mas o arquivo ainda passou de 500 KB. Vamos continuar reduzindo a qualidade aos poucos até caber.</string>
+    <string name="webp_lower_sharpness_warning">Mesmo com a qualidade mínima, o arquivo passou de 500 KB. Vamos reduzir a nitidez, mantendo %1$d FPS.</string>
 </resources>

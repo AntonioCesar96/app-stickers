@@ -40,7 +40,7 @@ public class AdaptiveWebpSearchTest {
             int attempts = 0;
             while (!search.isDone()) {
                 assertFalse(search.recordSize(size));
-                assertTrue(++attempts <= 16);
+                assertTrue(++attempts <= 100);
             }
             assertFalse(search.hasResult());
             assertEquals(12, search.getFps());
@@ -50,9 +50,39 @@ public class AdaptiveWebpSearchTest {
     @Test public void supportsExplicitLowQualityAndLowSourceFps() {
         AdaptiveWebpSearch search = new AdaptiveWebpSearch(30, 8);
         search.recordSize(600000);
-        assertTrue(search.isDone());
+        assertFalse(search.isDone());
         assertFalse(search.hasResult());
         assertEquals(8, search.getFps());
+        assertEquals(29, search.getQuality());
+    }
+
+    @Test public void fallbackTestsEveryQualityAndStopsAtFirstActualFit() {
+        AdaptiveWebpSearch search = new AdaptiveWebpSearch(55, 12);
+        for (int q = 55; q >= 35; q--) {
+            assertEquals(q, search.getQuality());
+            assertEquals(12, search.getFps());
+            assertEquals(512, search.getDetailSize());
+            assertEquals(q < 55, search.isExtraCompression());
+            assertEquals(q == 35, search.recordSize(q == 35 ? 512000 : 600000));
+        }
+        assertTrue(search.isDone());
+        assertEquals(35, search.getBestQuality());
+    }
+
+    @Test public void sharpnessFallbackPreservesFpsAndResumesFromCommittedSizes() {
+        AdaptiveWebpSearch original = new AdaptiveWebpSearch(55, 12);
+        AdaptiveWebpSearch restored = new AdaptiveWebpSearch(55, 12);
+        for (int i = 0; i < 60; i++) {
+            original.recordSize(600000);
+            restored.recordSize(600000);
+        }
+        assertEquals(0, restored.getQuality());
+        assertTrue(restored.getDetailSize() < 512);
+        assertEquals(original.getDetailSize(), restored.getDetailSize());
+        assertEquals(12, restored.getFps());
+        assertTrue(restored.recordSize(400000));
+        assertTrue(restored.isDone());
+        assertEquals(0, restored.getBestQuality());
     }
 
     @Test public void sourceRateAccountsForPlaybackSpeed() {

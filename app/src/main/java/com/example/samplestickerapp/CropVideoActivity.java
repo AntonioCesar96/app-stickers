@@ -341,7 +341,9 @@ public class CropVideoActivity extends AppCompatActivity {
         if (job == null) return;
         TextView status = findViewById(R.id.compression_status);
         status.setVisibility(View.VISIBLE);
-        status.setText(job.data.optString("message") + (job.running() ? "\nToque para acompanhar." : ""));
+        String warning = CompressionService.notice(this, job);
+        status.setText((warning.isEmpty() ? "" : warning + "\n")
+                + job.data.optString("message") + (job.running() ? "\nToque para acompanhar." : ""));
         status.setOnClickListener(v -> { progressHidden = false; refreshJob(); });
         converting = job.running();
         btnCrop.setEnabled(!converting);
@@ -360,7 +362,8 @@ public class CropVideoActivity extends AppCompatActivity {
                 TextView attempts = progressDialog.findViewById(R.id.attempts_tv);
                 attempts.setText(job.data.optString("message"));
                 TextView details = progressDialog.findViewById(R.id.webp_info_tv);
-                details.setText("Você pode minimizar o app. A compressão continua em segundo plano."
+                details.setText((warning.isEmpty() ? "" : warning + "\n\n")
+                        + "Você pode minimizar o app. A compressão continua em segundo plano."
                         + (value > 0 ? "\nTentativa atual: " + value + "%" : "")
                         + (NotificationManagerCompat.from(this).areNotificationsEnabled() ? ""
                         : "\nAtive as notificações para acompanhar fora do app."));

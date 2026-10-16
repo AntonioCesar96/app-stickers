@@ -69,6 +69,13 @@ public class CompressionService extends Service {
 
     static int notificationId(String id) { return id.hashCode() & 0x7fffffff; }
 
+    static String notice(Context context, CompressionJob job) {
+        if (!job.running() || !job.data.optBoolean("extraCompression")) return "";
+        return job.data.optBoolean("reducedSharpness")
+                ? context.getString(R.string.webp_lower_sharpness_warning, job.data.optInt("currentFps", 12))
+                : context.getString(R.string.webp_lower_quality_warning);
+    }
+
     @Override public void onCreate() {
         super.onCreate();
         channels(this);
@@ -100,12 +107,14 @@ public class CompressionService extends Service {
         PendingIntent tap = PendingIntent.getActivity(this, notificationId(job.id), screen,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         String text = job.data.optString("message", "Preparando vídeo…");
+        String warning = notice(this, job);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this,
                 finished ? FINISHED_CHANNEL : PROGRESS_CHANNEL)
                 .setSmallIcon(R.drawable.ic_compression_notification)
                 .setContentTitle(finished ? (job.done() ? "Figurinha pronta" : "Não foi possível comprimir")
                         : "Criando figurinha")
-                .setContentText(text).setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+                .setContentText(text).setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(warning.isEmpty() ? text : warning + "\n" + text))
                 .setContentIntent(tap).setOngoing(!finished).setAutoCancel(finished)
                 .setOnlyAlertOnce(!finished).setCategory(NotificationCompat.CATEGORY_PROGRESS);
         if (!finished) builder.setProgress(100, job.data.optInt("progress"), job.data.optInt("progress") <= 0);
@@ -183,11 +192,18 @@ public class CompressionService extends Service {
                     String timeline = gif ? GifMedia.timelineFilter(start, end, speed, search.getFps())
                             : String.format(Locale.US, "setpts=(PTS-STARTPTS)/%.8f,fps=%d,", speed, search.getFps());
                     String filter = timeline + String.format(Locale.US,
-                            "format=rgba,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=#00000000,crop=%d:%d:%d:%d,"
-                                    + "scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,"
-                                    + "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000", square, square, w, h, x, y);
+                            "format=rgba,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=#00000000,crop=%d:%d:%d:%d,",
+                            square, square, w, h, x, y) + GifMedia.outputScaleFilter(search.getDetailSize())
+                            + "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000";
                     String detail = String.format(Locale.US, "Figurinha %d/%d • tentativa %d • %d FPS • qualidade %d",
                             quadrant + 1, job.count(), trials.length() + 1, search.getFps(), search.getQuality());
+                    job.data.put("extraCompression", search.isExtraCompression());
+                    job.data.put("reducedSharpness", search.getDetailSize() < 512);
+                    job.data.put("currentFps", search.getFps());
+                    if (search.isExtraCompression()) {
+                        job.data.put("usedExtraCompression", true);
+                        detail = (search.getDetailSize() < 512 ? "Reduzindo nitidez • " : "Redução extra de qualidade • ") + detail;
+                    }
                     job.data.put("message", detail); job.data.put("progress", 0);
                     publish(job);
                     encode(job, GifMedia.webpArguments(source, gif, filter, search.getQuality(), compression, candidate), duration);
@@ -199,13 +215,17 @@ public class CompressionService extends Service {
                     job.save();
                 }
                 candidate.delete();
-                if (!search.hasResult()) throw new IOException("Encurte a duração ou recorte uma área menor para manter a fluidez em até 500 KB.");
-                results.put(describe(best, search.getBestQuality()));
+                if (!search.hasResult()) throw new IOException("O arquivo excedeu 500 KB mesmo após reduzir qualidade e nitidez ao mínimo. Tente outro trecho.");
+                String description = describe(best, search.getBestQuality());
+                if (search.getDetailSize() < 512) description += "\nNitidez reduzida para atingir 500 KB";
+                results.put(description);
                 job.data.put("trials", new JSONArray());
                 job.save();
             }
             job.data.put("status", "done");
-            job.data.put("message", job.count() == 1 ? "Compressão concluída. Toque para revisar e salvar."
+            job.data.put("message", job.data.optBoolean("usedExtraCompression")
+                    ? "Compressão concluída com qualidade reduzida. Toque para revisar e salvar."
+                    : job.count() == 1 ? "Compressão concluída. Toque para revisar e salvar."
                     : "As 4 figurinhas estão prontas. Toque para revisar e salvar.");
             job.data.put("progress", 100);
             job.save();

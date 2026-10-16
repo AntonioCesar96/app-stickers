@@ -23,6 +23,37 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 public class BackgroundCompressionTest {
+    @Test public void extraQualityAndSharpnessFallbacksResumeAndProduceValidNativeWebp() throws Exception {
+        CompressionJob previous = CompressionJob.pending(context);
+        assertTrue("Do not interrupt a user's running compression", previous == null || !previous.running());
+        context.getSharedPreferences("compression_jobs", 0).edit().remove("pending").commit();
+        try {
+        for (int rejected : new int[]{1, 56}) {
+            CompressionJob job = CompressionJob.create(context, input(1), new Rect(0, 0, 512, 512),
+                    512, false, "1", "12", "55", "6");
+            try {
+                // Simulate durable oversize checkpoints; run the next encode with the real Android codec.
+                for (int i = 0; i < rejected; i++) job.data.getJSONArray("trials").put(600000);
+                job.data.put("extraCompression", true);
+                job.data.put("reducedSharpness", rejected == 56);
+                job.data.put("currentFps", 12);
+                assertFalse(CompressionService.notice(context, job).isEmpty());
+                job.save();
+                CompressionService.start(context, job);
+                CompressionJob done = awaitJob(true);
+                assertTrue(done.data.optBoolean("usedExtraCompression"));
+                assertEquals(12, done.data.getInt("currentFps"));
+                assertEquals(rejected == 56, done.data.getBoolean("reducedSharpness"));
+                assertTrue(done.result(0).length() <= AdaptiveWebpSearch.MAX_BYTES);
+                assertTrue(done.data.getJSONArray("results").getString(0)
+                        .contains("Qualidade: " + (rejected == 1 ? "54" : "0")));
+            } finally { cleanup(job); }
+        }
+        } finally {
+            if (previous != null) context.getSharedPreferences("compression_jobs", 0).edit()
+                    .putString("pending", previous.id).commit();
+        }
+    }
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
     private final Context context = instrumentation.getTargetContext();
 

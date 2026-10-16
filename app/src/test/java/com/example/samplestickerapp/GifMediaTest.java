@@ -8,6 +8,14 @@ import java.util.Locale;
 import static org.junit.Assert.*;
 
 public class GifMediaTest {
+    @Test public void sharpnessReductionRestoresOutputCanvasScale() {
+        assertEquals("scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,",
+                GifMedia.outputScaleFilter(512));
+        String filter = GifMedia.outputScaleFilter(256);
+        assertTrue(filter.contains("scale=256:256:"));
+        assertTrue(filter.contains("scale=512:512:"));
+        assertThrows(IllegalArgumentException.class, () -> GifMedia.outputScaleFilter(0));
+    }
     @Test public void recognizesUppercaseAndSpacesWithoutMisclassifyingOtherFiles() {
         assertTrue(GifMedia.isGif(new File("a funny animation.GIF")));
         assertFalse(GifMedia.isGif(new File("animation.gif.mp4")));

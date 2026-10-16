@@ -52,4 +52,13 @@ final class GifMedia {
                 "-loop", "0", "-an", "-vsync", "0", output.getAbsolutePath()));
         return args.toArray(new String[0]);
     }
+
+    static String outputScaleFilter(int detailSize) {
+        if (detailSize < 1 || detailSize > 512) throw new IllegalArgumentException("Nitidez inválida.");
+        if (detailSize == 512) return "scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,";
+        // Downsample, then restore the required canvas size. The sticker keeps its framing;
+        // only fine detail is lost, rather than shrinking the sticker inside a large border.
+        return String.format(Locale.US, "scale=%d:%d:force_original_aspect_ratio=decrease:flags=area,"
+                        + "scale=512:512:force_original_aspect_ratio=decrease:flags=bilinear,", detailSize, detailSize);
+    }
 }
