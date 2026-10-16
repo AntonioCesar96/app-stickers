@@ -1,6 +1,6 @@
 # Compressão WebP: tentativas, parâmetros e controle em background
 
-Última atualização: 2026-10-16_11-14 (America/Cuiaba).
+Última atualização: 2026-10-16_11-22 (America/Cuiaba).
 
 ## Funcionamento e limite
 
@@ -15,6 +15,8 @@ O alvo é até 512000 bytes, apresentados como 500 KB. O serviço valida WebP co
 O parâmetro de nitidez define a resolução intermediária de detalhes, seguida de ampliação para a saída de 512×512. Um início manual em 200 não volta a 512 durante a busca; depois de esgotar a qualidade, os próximos níveis de detalhe são inferiores a 200.
 
 ## Diálogo
+
+O resumo da tentativa atual sob a barra usa `Q-75 · 30 FPS · C-6 · N-512 · 1×`, sem quebra de linha forçada entre parâmetros. Q significa qualidade, C esforço de compressão e N nitidez. Essa abreviação se aplica somente ao resumo atual; os rótulos dos inputs e os metadados da última tentativa concluída mantêm seu formato.
 
 A grade organiza Qualidade/FPS na primeira linha e Compressão/Nitidez na segunda; Velocidade ocupa a linha inferior. O ícone de informações é um vetor contornado de 20 dp, com padding dentro de um botão de 48 dp para preservar a área de toque. A ajuda e os parâmetros continuam vinculados aos mesmos IDs.
 

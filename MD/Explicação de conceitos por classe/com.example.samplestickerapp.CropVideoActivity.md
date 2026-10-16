@@ -1,6 +1,6 @@
 # CropVideoActivity: edição, controle e salvamento de figurinhas
 
-Última atualização: 2026-10-16_11-04 (America/Cuiaba).
+Última atualização: 2026-10-16_11-22 (America/Cuiaba).
 
 Código: `app/src/main/java/com/example/samplestickerapp/CropVideoActivity.java`.
 
@@ -25,6 +25,8 @@ O VideoView é silenciado no callback de preparação. MP4 usa looping nativo. G
 `onSaveInstanceState` grava jobId e o rascunho dos campos. Um Bundle atende à recriação da tela; estado e comandos duráveis pertencem aos arquivos do job. `onNewIntent` recebe outro ID por notificação e recria a tela para não misturar campos de tarefas diferentes.
 
 ## Iniciar e acompanhar
+
+`currentAttemptSettings` formata exclusivamente os parâmetros atuais sob a barra como `Q-75 · 30 FPS · C-6 · N-512 · 1×`, sem quebra explícita entre os valores. `attemptSettings` continua responsável pelos metadados da última saída. A separação evita que uma abreviação solicitada para o resumo mude também os inputs ou outro bloco de informação.
 
 `refreshJob` mantém o ProgressBar sempre determinado, inclusive em zero, e mostra `compression_percentage` com “Tentativa atual · N%”. A partir de 99%, usa “Finalizando tentativa”. O texto e a barra usam o mesmo inteiro persistido, limitado visualmente a 0–100. O percentual deixa de ser duplicado na descrição dos parâmetros. A ajuda do ícone explica que o valor é por tentativa e não prevê quantas faltam.
 

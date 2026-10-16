@@ -374,7 +374,7 @@ public class CropVideoActivity extends AppCompatActivity {
                 org.json.JSONObject active = job.data.optJSONObject("currentAttempt");
                 attempts.setText(converting && active != null
                         ? "Tentativa #" + active.optInt("number") + " · figurinha " + active.optInt("quadrant") + "/" + job.count()
-                        + "\n" + attemptSettings(active)
+                        + "\n" + currentAttemptSettings(active)
                         : job.done() ? "Resultado pronto para revisar e salvar."
                         : "cancelled".equals(job.data.optString("status")) ? "Processo parado. Você pode ajustar e reiniciar."
                         : job.data.optString("message"));
@@ -514,6 +514,12 @@ public class CropVideoActivity extends AppCompatActivity {
         return String.format(Locale.getDefault(), "Q%s · %s FPS · compressão %s\n%s× · nitidez %s",
                 settings.optString("quality"), settings.optString("fps"), settings.optString("compression"),
                 settings.optString("speed"), settings.optString("detailSize", "512"));
+    }
+
+    private static String currentAttemptSettings(org.json.JSONObject settings) {
+        return String.format(Locale.getDefault(), "Q-%s · %s FPS · C-%s · N-%s · %s×",
+                settings.optString("quality"), settings.optString("fps"), settings.optString("compression"),
+                settings.optString("detailSize", "512"), settings.optString("speed"));
     }
 
     private void showControlError(View view, String message) {

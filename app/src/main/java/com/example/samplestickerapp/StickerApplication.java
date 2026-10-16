@@ -33,7 +33,8 @@ public class StickerApplication extends Application {
             @Override public void onActivityResumed(Activity activity) {
                 if (!returning) return;
                 returning = false;
-                if (activity instanceof CropVideoActivity || activity instanceof SplashActivity) return;
+                if (activity instanceof CropVideoActivity || activity instanceof SplashActivity
+                        || activity instanceof ShareMediaActivity) return;
                 CompressionJob pending = CompressionJob.pending(StickerApplication.this);
                 if (pending != null && pending.shouldRestoreAutomatically(StickerApplication.this)) {
                     try {
