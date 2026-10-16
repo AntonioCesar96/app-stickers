@@ -38,7 +38,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
 
 /** Owns the encoder independently of the editor's lifecycle. */
@@ -118,7 +117,7 @@ public class CompressionService extends Service {
                         .bigText(text))
                 .setContentIntent(tap).setOngoing(!finished).setAutoCancel(finished)
                 .setOnlyAlertOnce(!finished).setCategory(NotificationCompat.CATEGORY_PROGRESS);
-        if (!finished) builder.setProgress(100, job.data.optInt("progress"), job.data.optInt("progress") <= 0);
+        if (!finished) builder.setProgress(100, job.data.optInt("progress"), false);
         return builder.build();
     }
 
@@ -193,7 +192,7 @@ public class CompressionService extends Service {
                     String filter = timeline + String.format(Locale.US,
                             "format=rgba,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=#00000000,crop=%d:%d:%d:%d,",
                             square, square, w, h, x, y) + GifMedia.outputScaleFilter(search.getDetailSize())
-                            + "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000";
+                            + "pad=512:512:(ow-iw)/2:(oh-ih)/2:color=#00000000,showinfo=checksum=0";
                     String detail = String.format(Locale.US, "Figurinha %d/%d • tentativa %d • %d FPS • qualidade %d",
                             quadrant + 1, job.count(), job.data.optInt("attemptCount") + 1, search.getFps(), search.getQuality());
                     int number = job.data.optInt("attemptCount") + 1;
@@ -303,12 +302,10 @@ public class CompressionService extends Service {
     private void encode(CompressionJob job, String[] arguments, double duration) throws Exception {
         CountDownLatch complete = new CountDownLatch(1);
         AtomicReference<FFmpegSession> result = new AtomicReference<>();
-        AtomicInteger progress = new AtomicInteger();
+        CompressionProgress progress = new CompressionProgress(duration, job.data.getJSONObject("currentAttempt").getInt("fps"));
         FFmpegSession session = FFmpegKit.executeWithArgumentsAsync(arguments, s -> {
             result.set(s); complete.countDown();
-        }, null, statistics -> {
-            progress.set(Math.min(99, Math.max(0, (int) (statistics.getTime() / (duration * 10)))));
-        });
+        }, log -> progress.frameLog(log.getMessage()), statistics -> progress.statistics(statistics.getTime()));
         sessionId = session.getSessionId();
         if (destroyed) FFmpegKit.cancel(sessionId);
         int ticks = 0;

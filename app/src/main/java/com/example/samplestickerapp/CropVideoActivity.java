@@ -362,17 +362,19 @@ public class CropVideoActivity extends AppCompatActivity {
                 if (progressDialog == null) progressDialog = createProgressDialog();
                 if (!progressDialog.isShowing()) progressDialog.show();
                 ProgressBar progress = progressDialog.findViewById(R.id.progress_bar);
-                int value = job.data.optInt("progress");
-                progress.setIndeterminate(value <= 0);
-                if (!converting) progress.setIndeterminate(false);
+                int value = Math.max(0, Math.min(100, job.data.optInt("progress")));
+                progress.setIndeterminate(false);
                 progress.setMax(100);
                 progress.setVisibility(converting ? View.VISIBLE : View.GONE);
                 progress.setProgress(value);
+                TextView percentage = progressDialog.findViewById(R.id.compression_percentage);
+                percentage.setVisibility(converting ? View.VISIBLE : View.GONE);
+                percentage.setText((value >= 99 ? "Finalizando tentativa" : "Tentativa atual") + " · " + value + "%");
                 TextView attempts = progressDialog.findViewById(R.id.attempts_tv);
                 org.json.JSONObject active = job.data.optJSONObject("currentAttempt");
                 attempts.setText(converting && active != null
                         ? "Tentativa #" + active.optInt("number") + " · figurinha " + active.optInt("quadrant") + "/" + job.count()
-                        + "\n" + attemptSettings(active) + (value > 0 ? " · " + value + "%" : "")
+                        + "\n" + attemptSettings(active)
                         : job.done() ? "Resultado pronto para revisar e salvar."
                         : "cancelled".equals(job.data.optString("status")) ? "Processo parado. Você pode ajustar e reiniciar."
                         : job.data.optString("message"));
@@ -559,6 +561,8 @@ public class CropVideoActivity extends AppCompatActivity {
         text.setTextColor(Color.BLACK);
         text.setText((warning.isEmpty() ? "" : warning + "\n\n")
                 + "Você pode minimizar o app. A compressão continua em segundo plano.\n\n"
+                + "A porcentagem acompanha os quadros processados da tentativa atual. Reinicia em cada tentativa; "
+                + "não é uma estimativa do número de tentativas restantes. O encoder pode levar mais tempo para finalizar o arquivo.\n\n"
                 + "Reiniciar interrompe a tentativa atual e reinicia a busca automática com os valores dos campos. "
                 + "No modo de quatro figurinhas, todas são refeitas. Cancelar para o processo e mantém este diálogo aberto.\n\n"
                 + "Qualidade e FPS menores podem reduzir o tamanho. Nitidez menor reduz detalhes, mantendo 512×512. "

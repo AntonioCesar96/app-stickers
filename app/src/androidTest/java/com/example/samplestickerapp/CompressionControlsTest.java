@@ -19,6 +19,45 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.Assert.*;
 
 public class CompressionControlsTest {
+    @Test public void nativeEncoderPublishesMeasuredIntermediatePercentage() throws Exception {
+        CompressionJob previous = CompressionJob.pending(context);
+        for (android.app.ActivityManager.RunningServiceInfo service :
+                context.getSystemService(android.app.ActivityManager.class).getRunningServices(Integer.MAX_VALUE))
+            assertNotEquals(CompressionService.class.getName(), service.service.getClassName());
+        context.getSharedPreferences("compression_jobs", 0).edit().remove("pending").commit();
+        CompressionJob job = null;
+        File input = new File(context.getCacheDir(), "measured-progress-test.mp4");
+        try {
+            Session fixture = FFmpegKit.executeWithArguments(new String[]{"-y", "-f", "lavfi", "-i",
+                    "testsrc2=s=512x512:r=30:d=4", "-c:v", "libx264", "-preset", "ultrafast", input.getAbsolutePath()});
+            assertTrue(ReturnCode.isSuccess(fixture.getReturnCode()));
+            StickerPack pack = new StickerPack("progress-test", "Progress", "Test", "tray.png", "", "", "", "", "1", false, true);
+            pack.setStickers(new ArrayList<>());
+            job = CompressionJob.create(context, new Intent().putExtra("file_path", input.getAbsolutePath()).putExtra("sticker_pack", pack),
+                    new Rect(0, 0, 512, 512), 512, false, "1", "30", "100", "6");
+            CompressionService.start(context, job);
+            long deadline = System.currentTimeMillis() + 30000;
+            int observed = 0;
+            while (System.currentTimeMillis() < deadline) {
+                CompressionJob state = CompressionJob.load(context, job.id);
+                observed = state.data.optInt("progress");
+                if (observed > 0 && observed < 99) break;
+                assertTrue(state.data.toString(), state.running());
+                Thread.sleep(100);
+            }
+            assertTrue("Must report a real intermediate percentage, observed " + observed, observed > 0 && observed < 99);
+            job.request("cancel", null);
+            waitFor(job.id, "cancelled", false);
+        } finally {
+            context.stopService(new Intent(context, CompressionService.class));
+            Thread.sleep(300);
+            if (job != null) { job.data.put("status", "cancelled"); job.save(); CompressionJob.consume(context, job.id);
+                context.getSystemService(android.app.NotificationManager.class).cancel(CompressionService.notificationId(job.id)); }
+            android.content.SharedPreferences.Editor edit = context.getSharedPreferences("compression_jobs", 0).edit();
+            if (previous == null) edit.remove("pending"); else edit.putString("pending", previous.id);
+            edit.commit(); input.delete();
+        }
+    }
     @Test public void organizedDialogUses95PercentWidthAndKeepsFieldsVisible() throws Exception {
         CompressionJob previous = CompressionJob.pending(context);
         for (android.app.ActivityManager.RunningServiceInfo service :
@@ -58,10 +97,22 @@ public class CompressionControlsTest {
                         R.id.retry_detail, R.id.retry_compression_button, R.id.cancel_compression})
                     assertTrue("Control must be visible: " + id, editor.progressDialog.findViewById(id).getGlobalVisibleRect(new Rect()));
             });
+            job.data.put("status", "running").put("progress", 42); job.save();
+            Thread.sleep(1000);
+            instrumentation.runOnMainSync(() -> {
+                android.widget.ProgressBar bar = editor.progressDialog.findViewById(R.id.progress_bar);
+                assertFalse(bar.isIndeterminate());
+                assertEquals(42, bar.getProgress());
+                assertTrue(((TextView) editor.progressDialog.findViewById(R.id.compression_percentage)).getText().toString().contains("42%"));
+            });
+            screenshot = instrumentation.getUiAutomation().takeScreenshot();
+            try (FileOutputStream out = new FileOutputStream(new File(context.getCacheDir(), "compression-dialog-progress42.png"))) {
+                screenshot.compress(Bitmap.CompressFormat.PNG, 100, out);
+            } finally { screenshot.recycle(); }
         } finally {
             CropVideoActivity editor = screen;
             instrumentation.runOnMainSync(() -> { if (editor != null) editor.finish(); });
-            if (job != null) CompressionJob.consume(context, job.id);
+            if (job != null) { job.data.put("status", "cancelled"); job.save(); CompressionJob.consume(context, job.id); }
             android.content.SharedPreferences.Editor edit = context.getSharedPreferences("compression_jobs", 0).edit();
             if (previous != null) edit.putString("pending", previous.id); else edit.remove("pending");
             edit.commit(); input.delete();

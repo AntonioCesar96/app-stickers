@@ -1,6 +1,6 @@
 # CompressionService: execução, interrupção e publicação de resultados
 
-Última atualização: 2026-10-16_10-40 (America/Cuiaba).
+Última atualização: 2026-10-16_11-04 (America/Cuiaba).
 
 Código: `app/src/main/java/com/example/samplestickerapp/CompressionService.java`.
 
@@ -26,7 +26,9 @@ O candidato só substitui o melhor quando `recordSize` retorna true. O arquivo m
 
 ## Sessão nativa e sincronização
 
-`encode` inicia FFmpeg assíncrono. O callback de conclusão publica a sessão em AtomicReference e libera CountDownLatch. Estatísticas atualizam AtomicInteger, permitindo compartilhar progresso sem depender de um objeto View.
+`encode` inicia FFmpeg assíncrono. O callback de conclusão publica a sessão em AtomicReference e libera CountDownLatch. Estatísticas e logs do filtro final `showinfo=checksum=0` atualizam `CompressionProgress`, que usa AtomicInteger para compartilhar o percentual. O timestamp do quadro após os filtros representa a timeline de saída; o medidor adiciona a duração de um quadro e compara com a duração total ajustada pela velocidade. Isso evita depender exclusivamente do tempo emitido pelo muxer WebP, que pode ficar em zero durante a conversão.
+
+O percentual fica limitado a 99 enquanto há trabalho nativo, e a interface informa finalização. Não é porcentagem de tempo de CPU: filtros e codificação podem ter custos diferentes ao longo do vídeo. O medidor é novo a cada encode, e a notificação usa barra determinada mesmo em zero.
 
 A thread espera em intervalos de 100 ms e chama `checkControl`. Aproximadamente a cada segundo grava progresso e notifica. Quando há controle pendente, cancela o sessionId exato, aguarda a conclusão e só depois permite reuso do candidato. A espera evita duas sessões escrevendo no mesmo caminho.
 

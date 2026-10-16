@@ -1,10 +1,12 @@
 # CompressionControlsTest: integrar diálogo, serviço e FFmpeg
 
-Última atualização: 2026-10-16_10-54 (America/Cuiaba).
+Última atualização: 2026-10-16_11-04 (America/Cuiaba).
 
 Código: `app/src/androidTest/java/com/example/samplestickerapp/CompressionControlsTest.java`.
 
 ## O que a instrumentação acrescenta
+
+`nativeEncoderPublishesMeasuredIntermediatePercentage` gera um vídeo de teste, inicia o serviço real e aguarda um percentual estritamente entre 0 e 99, depois cancela de forma coordenada. Isso verifica o caminho nativo de produção do progresso, sem precisar concluir um encode longo. O cenário visual também prepara 42% sintéticos e verifica barra determinada e texto iguais, capturando a apresentação. Os 42% da captura não são uma amostra da conversão nativa: são uma verificação separada da interface.
 
 `organizedDialogUses95PercentWidthAndKeepsFieldsVisible` acrescenta um cenário exclusivamente visual: gera um pequeno preview, prepara metadados sintéticos de tarefa cancelada e abre o diálogo. Mede o decor em 95% da largura da tela e verifica região global visível para os cinco campos e as ações. Captura `compression-dialog-organized.png` para revisão. Os 664,1 KB mostrados nesse cenário são dados de apresentação, não resultado de um novo benchmark de conversão.
 
