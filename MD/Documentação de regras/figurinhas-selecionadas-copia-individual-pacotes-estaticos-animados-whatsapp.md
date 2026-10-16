@@ -1,10 +1,10 @@
 # Figurinhas selecionadas: cópia individual e exportação
 
-Atualização: 2026-10-16_16-38 — America/Cuiaba.
+Atualização: 2026-10-16_16-46 — America/Cuiaba.
 
 ## Finalidade
 
-Permitir reunir escolhas de diferentes pacotes sem adicionar todo o pacote original ao WhatsApp. A entrada é o botão **Adicionar às selecionadas**, abaixo da prévia ampliada de uma figurinha na tela de detalhes. O efeito é copiar para uma coleção gerenciada, não mover nem recomprimir.
+Permitir reunir escolhas de diferentes pacotes sem adicionar todo o pacote original ao WhatsApp. A entrada é o botão **Adicionar**, abaixo da prévia ampliada de uma figurinha na tela de detalhes. O efeito é copiar para uma coleção gerenciada, não mover nem recomprimir.
 
 ## Identidade, tipo e capacidade
 
